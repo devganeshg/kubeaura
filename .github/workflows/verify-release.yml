@@ -8,9 +8,17 @@ name: Verify release
 #
 # Runs automatically after a release is published, and can be run by hand
 # against any existing tag.
+#
+# The `release: published` event does NOT fire for releases created by
+# GITHUB_TOKEN (which is how goreleaser publishes here), so the workflow_run
+# trigger is what actually makes this run — v0.1.0 shipped unverified because
+# only the release trigger was wired up.
 on:
   release:
     types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
@@ -21,7 +29,27 @@ permissions:
   contents: read
 
 jobs:
+  # workflow_run carries no tag, so resolve one once and let every job share it.
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIVEN: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -eu
+          tag="$GIVEN"
+          if [ -z "$tag" ]; then
+            tag=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
+          fi
+          echo "verifying $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   install-script:
+    needs: resolve
     name: install.sh (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -33,7 +61,7 @@ jobs:
 
       - name: Install from the published release
         env:
-          KUBEAURA_VERSION: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          KUBEAURA_VERSION: ${{ needs.resolve.outputs.tag }}
         run: |
           set -eux
           KUBEAURA_BIN_DIR="$HOME/.kubeaura-bin" sh scripts/install.sh
@@ -52,12 +80,13 @@ jobs:
 
   windows-archive:
     name: Windows archive
+    needs: resolve
     runs-on: windows-latest
     steps:
       - name: Download and run the .exe
         shell: pwsh
         env:
-          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          TAG: ${{ needs.resolve.outputs.tag }}
         run: |
           $ErrorActionPreference = "Stop"
           $tag = $env:TAG
@@ -73,11 +102,12 @@ jobs:
 
   container:
     name: Container image
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - name: Pull and run
         env:
-          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          TAG: ${{ needs.resolve.outputs.tag }}
         run: |
           set -eux
           img="ghcr.io/${{ github.repository_owner }}/kubeaura:${TAG#v}"
@@ -86,6 +116,7 @@ jobs:
 
   go-install:
     name: go install
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,5 +125,5 @@ jobs:
           go-version-file: go.mod
       - run: |
           set -eux
-          go install github.com/${{ github.repository }}/cmd/kubeaura@${{ github.event.inputs.tag || github.event.release.tag_name }}
+          go install github.com/${{ github.repository }}/cmd/kubeaura@${{ needs.resolve.outputs.tag }}
           "$(go env GOPATH)/bin/kubeaura" --version
