@@ -736,7 +736,7 @@ no ingress auth at all — a good way to start.
 - Shared informers / watch cache for live-updating views
 - Terminal (TUI) mode
 
-See [`docs/internal/requirements.txt`](docs/internal/requirements.txt) for the full architecture decisions.
+See [`docs/internal/architecture.txt`](docs/internal/architecture.txt) for the full architecture decisions.
 
 ---
 

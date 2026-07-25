@@ -7,7 +7,7 @@ Kubernetes UI (in the spirit of k9s / Lens / Headlamp) with a built-in AI Assist
 
 - **It's an operator tool, not a SaaS backend.** Keep changes aligned with the
   single-binary, per-operator, stateless model (see
-  `docs/internal/requirements.txt` → ARCHITECTURE MODEL). No shared caches,
+  `docs/internal/architecture.txt` → ARCHITECTURE MODEL). No shared caches,
   message buses, or HA tiers.
 - **Loopback and no-auth are load-bearing.** KubeMind authenticates nobody, so
   the defaults in `internal/api/guard.go` and `config.DefaultAddr` are what keep
