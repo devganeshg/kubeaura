@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,21 @@ import (
 
 // version is set at build time via -ldflags "-X main.version=...".
 var version = "dev"
+
+// A `go install github.com/devganeshg/kubeaura/cmd/kubeaura@v0.1.0` build gets
+// no ldflags, so without this it would report "dev" and leave people unable to
+// say which version they are running in a bug report. The module version the
+// toolchain stamped in is the honest answer.
+func init() {
+	if version != "dev" {
+		return
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return
+	}
+	version = info.Main.Version
+}
 
 func main() {
 	// KUBEAURA_DESKTOP=1 is the env form of --desktop, so app bundles (macOS
