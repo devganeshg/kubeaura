@@ -25,7 +25,7 @@ jobs:
         run: make app
       - name: Zip the bundle
         run: cd dist && zip -r KubeAura-macos.zip KubeAura.app
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: KubeAura-macos
           path: dist/KubeAura-macos.zip
@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: |
           printf 'start "" "%%~dp0kubeaura.exe" --desktop\r\n' > "dist/KubeAura Desktop.bat"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: KubeAura-windows
           path: dist/
@@ -82,7 +82,7 @@ jobs:
           Terminal=false
           Categories=Development;
           EOF
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: KubeAura-linux
           path: dist/
