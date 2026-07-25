@@ -59,6 +59,28 @@ Scoop is the same shape: a public `devganeshg/scoop-bucket` repo and a
 Until then the install script, `go install`, the release archives, and the
 container image all work — that is a complete install story on its own.
 
+## Docker Hub (optional)
+
+Every release publishes `ghcr.io/devganeshg/kubemind` automatically — no setup,
+no account, no pull rate limits. That is enough on its own.
+
+Docker Hub is worth adding anyway because it is where most people look first.
+It is skipped unless both secrets exist, so a missing account can never fail a
+release:
+
+1. Create a Docker Hub account and a repository named `kubemind`.
+2. Account Settings → **Personal access tokens** → create one with
+   **Read, Write, Delete** scope. Copy it; it is shown once.
+3. In this repo: Settings → Secrets and variables → Actions → add
+   **`DOCKERHUB_USERNAME`** (your Docker Hub username) and
+   **`DOCKERHUB_TOKEN`** (the token).
+
+The next tagged release then pushes to both registries and syncs this README
+onto the Docker Hub listing page.
+
+Note the rate limits: anonymous Docker Hub pulls are capped per IP, while ghcr
+is not. If someone reports a `toomanyrequests` error, point them at ghcr.
+
 ## Dependencies
 
 `THIRD_PARTY_LICENSES.md` must match what the binary actually links, because

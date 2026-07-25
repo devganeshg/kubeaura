@@ -98,7 +98,8 @@ docker run --rm -p 7654:7654 \
 ```
 
 Then open <http://127.0.0.1:7654>. Multi-arch (amd64 + arm64), distroless,
-runs as non-root.
+runs as non-root. Also on Docker Hub as `devganeshg/kubemind` — `ghcr.io` has
+no pull rate limits, so prefer it if you hit one.
 
 > **If your cluster is local (kind, minikube, k3d), this will not connect.**
 > Their kubeconfigs point at `127.0.0.1:<port>`, and inside a container that
