@@ -29,7 +29,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, macos-13] # arm64 and amd64 macOS
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install from the published release
         env:
@@ -88,7 +88,7 @@ jobs:
     name: go install
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
