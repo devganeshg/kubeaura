@@ -1,0 +1,29 @@
+# Binaries
+/kubemind
+/kubemind-*
+*.exe
+dist/
+bin/
+
+# Go
+*.test
+*.out
+coverage.*
+vendor/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local env / secrets
+.env
+*.local
+kubeconfig
+
+# Claude Code local state
+.claude/
+
+# Slide deck (bundles third-party JS from a CDN; not part of the product)
+/deck/

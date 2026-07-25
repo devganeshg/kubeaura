@@ -1,0 +1,155 @@
+# KubeMind — all-in-one install (no Helm required).
+#
+#   kubectl apply -f https://raw.githubusercontent.com/devganeshg/kubemind/main/deploy/kubernetes/install.yaml
+#   kubectl -n kubemind port-forward svc/kubemind 8080:80
+#   open http://localhost:8080
+#
+# SECURITY — read before exposing this beyond port-forward:
+# KubeMind has no login of its own. Anyone who can reach this Service acts
+# with the ServiceAccount below. This manifest therefore ships read-only (no
+# create/update/delete verbs) and without Secrets read access. If you put it
+# behind an Ingress, authenticate that Ingress first (oauth2-proxy, your SSO).
+#
+# To enable the AI Assistant, create the secret before/after applying:
+#   kubectl -n kubemind create secret generic kubemind \
+#     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+# (the Deployment reads it optionally; without it the UI runs without AI.)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubemind
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubemind
+  namespace: kubemind
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubemind
+rules:
+  - apiGroups: [""]
+    # Secrets are deliberately absent: granting them here would expose every
+    # Secret in the cluster through an unauthenticated UI. Add them only if you
+    # need the Secrets browser and your access path is authenticated.
+    resources: [pods, pods/log, services, configmaps, namespaces, nodes, events, persistentvolumeclaims, persistentvolumes, serviceaccounts]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, daemonsets, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods, nodes]
+    verbs: [get, list]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings, clusterroles, clusterrolebindings]
+    verbs: [get, list, watch]
+  # Mutations for scale / restart / delete / apply are commented out on
+  # purpose: a shared instance authenticates nobody, so write access would let
+  # anyone who reaches the Service change your cluster. Uncomment only after
+  # your Ingress requires a login (and prefer the Helm chart's
+  # rbac.readOnly=false, which does the same thing).
+  # - apiGroups: [""]
+  #   resources: [pods, services, configmaps]
+  #   verbs: [create, update, patch, delete]
+  # - apiGroups: [apps]
+  #   resources: [deployments, statefulsets, daemonsets, deployments/scale]
+  #   verbs: [create, update, patch, delete]
+  # - apiGroups: [batch]
+  #   resources: [jobs, cronjobs]
+  #   verbs: [create, update, patch, delete]
+  # - apiGroups: [networking.k8s.io]
+  #   resources: [ingresses]
+  #   verbs: [create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubemind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubemind
+subjects:
+  - kind: ServiceAccount
+    name: kubemind
+    namespace: kubemind
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubemind
+  namespace: kubemind
+  labels: { app.kubernetes.io/name: kubemind }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: kubemind }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: kubemind }
+    spec:
+      serviceAccountName: kubemind
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: kubemind
+          image: ghcr.io/devganeshg/kubemind:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: KUBEMIND_ADDR
+              value: ":8080"
+            # A shared instance must answer on the Pod IP and on whatever host
+            # your Service or Ingress uses, so the loopback-only host check is
+            # relaxed here. It is the reason the Ingress must authenticate.
+            - name: KUBEMIND_ALLOW_REMOTE
+              value: "1"
+            - name: ANTHROPIC_MODEL
+              value: claude-opus-5
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kubemind
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubemind
+  namespace: kubemind
+  labels: { app.kubernetes.io/name: kubemind }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: kubemind }
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

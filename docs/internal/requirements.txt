@@ -1,0 +1,217 @@
+###################################################
+KubeMind — Product & Architecture Requirements
+###################################################
+
+Project Name:
+  KubeMind
+
+Project Goal:
+  An easy-to-use, extensible, modern Kubernetes UI that helps Platform Engineers,
+  DevOps Engineers, SREs, Developers, and Cloud Architects manage Kubernetes
+  clusters efficiently — with a first-class AI Assistant as the key differentiator.
+
+License:
+  Open source (Apache-2.0), community-driven and plugin-extensible.
+
+
+###################################################
+ARCHITECTURE MODEL (decided)
+###################################################
+
+KubeMind is an OPERATOR TOOL, in the same class as k9s, Lens, and Headlamp —
+NOT a centralized multi-tenant SaaS control plane like Rancher.
+
+Implications of this decision:
+
+  - Deployment model: each user/operator runs their own instance — a single
+    self-contained binary locally, or a per-user pod in-cluster. There is no
+    shared, always-on aggregation backend that all users route through.
+
+  - Where state lives: KubeMind does NOT store cluster state. The Kubernetes
+    API server + etcd hold the state (pods, deployments, etc.). KubeMind reads
+    it on demand and via watches. Scale to 100k+ objects comes from using the
+    API server correctly, not from a caching tier of our own.
+
+  - Therefore we deliberately DO NOT need: a microservice split, a shared Redis
+    cache, a message bus, an HA control-plane tier, or multi-region replication.
+    Those belong to the Rancher-style centralized model we are explicitly NOT
+    building.
+
+  - How we scale to large clusters (the real engineering, not big infra):
+      * Shared informers / watch cache (client-go SharedInformerFactory) for
+        live, low-latency views instead of repeated full LIST calls.
+      * Server-side pagination (Limit / Continue) so we fetch only the visible
+        page of a large resource set.
+      * Field & label selectors to narrow queries at the API server.
+      * Streaming (WebSocket/SSE) for logs and live resource updates.
+
+  - Multi-cluster = multiple kubeconfig contexts the single instance can switch
+    between and view — NOT a central server fanning out to 500 clusters at once.
+
+
+###################################################
+TECH STACK (decided for MVP / current)
+###################################################
+
+Single Go binary:
+  - Language:        Go
+  - Kubernetes:      client-go (clientset, dynamic client, discovery/RESTMapper,
+                     shared informers), metrics client (optional)
+  - Web server:      Go net/http, embedded UI via go:embed
+  - Frontend:        Single-page app (vanilla JS today; may migrate to a build
+                     step later if complexity warrants — but stays client-side)
+  - AI:              Anthropic Claude Messages API (model: claude-opus-4-8)
+
+Rationale: one binary, zero external runtime dependencies, cross-platform,
+matches how k9s/Headlamp ship. Optional integrations (Prometheus, etc.) are
+read from the cluster, not run by us.
+
+(The earlier draft's React + Spring Boot + Postgres/Redis + Keycloak +
+microservice stack was written for a centralized platform and is intentionally
+dropped in favor of the operator-tool model above.)
+
+
+###################################################
+FUNCTIONAL REQUIREMENTS
+###################################################
+
+1. Cluster Visibility
+   - Multi-context (multi-cluster) switching via kubeconfig
+   - Cluster health dashboard (nodes, pods, deployments, services, events)
+   - Resource utilization visibility (via metrics-server when present)
+   - Cluster/context status reporting
+
+2. Kubernetes Resource Management (browse + inspect)
+   - Pods, Deployments, StatefulSets, DaemonSets, ReplicaSets
+   - Services, Ingress
+   - ConfigMaps, Secrets
+   - Jobs, CronJobs
+   - PersistentVolumes, PersistentVolumeClaims
+   - Namespaces, Nodes, Events
+   - Custom Resources (via dynamic client + discovery)
+
+3. Resource Operations
+   - View / Edit / Apply YAML (server-side apply)
+   - Delete, Scale, Restart (rolling), Rollback
+   - Export YAML, view container logs (streaming)
+   - Exec into pod (roadmap)
+
+4. Observability
+   - Metrics dashboard, resource consumption
+   - Event monitoring, log viewer, streaming updates
+   - Optional Prometheus/Loki/Grafana links (read cluster config, deep-link)
+
+5. Security & RBAC
+   - RBAC visualization (Roles, RoleBindings, ServiceAccounts)
+   - "Can-I" permission checks against the current context
+   - AI Security Advisor (misconfig, exposed services, RBAC risk)
+
+
+###################################################
+AI FEATURES (the differentiator)
+###################################################
+
+An AI Assistant embedded in the UI, powered by Claude:
+
+1. Natural-Language Cluster Querying
+   - "Why is my pod crashing?" / "Show failed deployments" /
+     "Find high CPU workloads" / "List unhealthy nodes" /
+     "Show services without ingress"
+   - Grounded in a live JSON snapshot of the current cluster/namespace.
+
+2. AI Troubleshooting
+   - Analyze logs, events, metrics, and resource config for a selected object
+   - Output: Root Cause Analysis, suggested fixes (kubectl/YAML), best practices
+
+3. AI Resource Generator
+   - Generate apply-ready YAML from a natural-language description
+   - Deployments, Services, Ingress, ConfigMaps, Secrets, (Helm — roadmap)
+
+4. AI Cost Optimization (roadmap)
+   - Rightsizing, underutilized/idle workloads, unused storage, overprovisioning
+
+5. AI Security Advisor (roadmap)
+   - Misconfigurations, exposed services, RBAC risks, vulnerable containers
+
+
+###################################################
+PLUGIN SYSTEM (roadmap)
+###################################################
+
+Keep the operator-tool model: plugins extend the single instance, they are not
+separate services.
+
+  - Plugin SDK (Go interfaces + a stable HTTP/JSON contract for UI panels)
+  - Plugin lifecycle: register -> load -> render panel / add actions
+  - Example plugins: AWS/Azure/GCP context helpers, GitHub, ArgoCD, Security scan
+  - Plugin marketplace (later)
+
+
+###################################################
+NON-FUNCTIONAL REQUIREMENTS
+###################################################
+
+Scalability (operator-tool interpretation):
+  - Handle clusters with 100k+ objects responsively via informers + pagination +
+    selectors. Scale is per-instance and bounded by the API server, not by our
+    own infra.
+  - Support many kubeconfig contexts; switch quickly between them.
+
+Availability:
+  - No HA tier required — the tool is per-operator and stateless. Availability of
+    the data equals availability of each cluster's own API server.
+
+Performance:
+  - Sub-second navigation for the visible page; live updates via watch/stream.
+
+Security:
+  - Never persist secrets. Honor the operator's own RBAC — the tool can only do
+    what the current kubeconfig credential is allowed to do.
+  - No credentials leave the machine except calls to the configured Claude API.
+
+Maintainability:
+  - Clean package boundaries (config / k8s / ai / api / web), single binary,
+    fast build, high test coverage on the k8s layer.
+
+Portability:
+  - Cross-platform single binary (Linux/macOS/Windows), plus a container image
+    and a Helm chart for in-cluster deployment.
+
+
+###################################################
+ROADMAP
+###################################################
+
+Phase 1 — MVP  (DONE)
+  - Single Go binary, client-go, embedded SPA
+  - Health dashboard, 14 resource kinds, operations (scale/restart/delete/apply/
+    logs/YAML)
+  - AI Assistant: NL query, troubleshoot, YAML generation
+
+Phase 2 — Scale & UX  (NEXT)
+  - Shared informers + watch cache for live views
+  - Server-side pagination + field/label selectors
+  - Streaming logs and live resource updates (WebSocket/SSE)
+  - Multi-context switcher in the UI
+  - Metrics dashboard (metrics-server), RBAC visualization + can-i checks
+
+Phase 3 — Extensibility & Ecosystem
+  - Plugin SDK + example plugins
+  - AI Cost Optimization + AI Security Advisor
+  - Container image + Helm chart, CI release pipeline
+  - Exec-into-pod, port-forward, rollout history/rollback UI
+
+Community:
+  - Apache-2.0, CONTRIBUTING guide, issue templates, CI on every PR.
+
+
+###################################################
+DELIVERABLES
+###################################################
+
+  - Running single-binary MVP (done)
+  - Architecture docs + Mermaid diagrams (docs/)
+  - API specification for the internal HTTP/JSON contract
+  - Plugin SDK design
+  - Kubernetes deployment (image + Helm chart)
+  - CI/CD (GitHub Actions: build, test, lint, release)

@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Track the go directive in go.mod so the two cannot drift.
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Verify modules
+        run: go mod verify
+
+      - name: Formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -race -count=1
+
+  vuln:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      # KubeMind links client-go and a dozen Kubernetes libraries directly into
+      # the binary, so a dependency CVE is our CVE. govulncheck reports only
+      # what our code actually reaches, so a failure here is always actionable.
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  attribution:
+    name: Third-party licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Apache-2.0 obliges us to ship attribution for every bundled dependency.
+      # Regenerating and diffing keeps that list honest as dependencies change.
+      - name: Attribution is up to date
+        run: |
+          sh scripts/gen-licenses.sh
+          if ! git diff --quiet THIRD_PARTY_LICENSES.md; then
+            echo "THIRD_PARTY_LICENSES.md is stale. Run: sh scripts/gen-licenses.sh"
+            git diff THIRD_PARTY_LICENSES.md
+            exit 1
+          fi
+
+      - name: Installer script parses
+        run: sh -n scripts/install.sh

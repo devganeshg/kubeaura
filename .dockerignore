@@ -1,0 +1,10 @@
+.git
+.github
+dist
+bin
+kubemind
+kubemind-*
+*.md
+deploy
+docs
+.DS_Store
