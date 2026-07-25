@@ -64,7 +64,9 @@ jobs:
       - name: Install WebKitGTK
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev \
+            libwebkit2gtk-4.1-dev || sudo apt-get install -y build-essential pkg-config libgtk-3-dev \
+            libwebkit2gtk-4.0-dev
       - name: Build kubeaura (desktop)
         run: |
           CGO_ENABLED=1 go build -tags desktop -trimpath \
