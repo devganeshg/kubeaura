@@ -740,14 +740,12 @@ no ingress auth at all — a good way to start.
 - Shared informers / watch cache for live-updating views
 - Terminal (TUI) mode
 
-See [`docs/internal/architecture.txt`](docs/internal/architecture.txt) for the full architecture decisions.
-
 ---
 
 ## Versioning & releases
 
 KubeAura follows [SemVer](https://semver.org). The current version is
-**v0.1.0** (pre-1.0: minor versions may include breaking changes) — see
+**v0.1.1** (pre-1.0: minor versions may include breaking changes) — see
 [CHANGELOG.md](CHANGELOG.md) for what's new in each release.
 
 - The binary reports its version in the header badge and at `/api/health`.
