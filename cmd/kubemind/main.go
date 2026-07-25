@@ -142,7 +142,10 @@ func main() {
 	// Binding beyond loopback publishes an unauthenticated UI that can apply,
 	// delete, and exec. The guard in internal/api still refuses non-loopback
 	// Host headers unless AllowRemote is set, but the operator should hear it.
-	if !isLoopbackAddr(ln.Addr().String()) {
+	if !isLoopbackAddr(ln.Addr().String()) && !inContainer() {
+		// Suppressed in a container: there, loopback is the container itself,
+		// so binding all interfaces is correct and "bind 127.0.0.1 instead"
+		// would be actively wrong advice.
 		msg := "  ⚠  Listening on %s — beyond this machine.\n" +
 			"     KubeMind has no login of its own and can apply/delete/exec with your\n" +
 			"     credentials. Put authentication in front of it, or bind %s.\n\n"
@@ -294,6 +297,16 @@ func portOf(addr string) int {
 	}
 	n, _ := strconv.Atoi(p)
 	return n
+}
+
+// inContainer reports whether we are running inside a container, where the
+// container boundary — not the loopback interface — is the isolation.
+func inContainer() bool {
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		return true // a Pod
+	}
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
 }
 
 // isLoopbackAddr reports whether a resolved listen address is reachable only

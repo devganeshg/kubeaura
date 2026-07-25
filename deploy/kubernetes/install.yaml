@@ -1,8 +1,8 @@
 # KubeMind — all-in-one install (no Helm required).
 #
 #   kubectl apply -f https://raw.githubusercontent.com/devganeshg/kubemind/main/deploy/kubernetes/install.yaml
-#   kubectl -n kubemind port-forward svc/kubemind 8080:80
-#   open http://localhost:8080
+#   kubectl -n kubemind port-forward svc/kubemind 7654:80
+#   open http://localhost:7654
 #
 # SECURITY — read before exposing this beyond port-forward:
 # KubeMind has no login of its own. Anyone who can reach this Service acts
@@ -111,10 +111,10 @@ spec:
             capabilities: { drop: ["ALL"] }
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 7654
           env:
             - name: KUBEMIND_ADDR
-              value: ":8080"
+              value: ":7654"
             # A shared instance must answer on the Pod IP and on whatever host
             # your Service or Ingress uses, so the loopback-only host check is
             # relaxed here. It is the reason the Ingress must authenticate.

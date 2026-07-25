@@ -29,7 +29,10 @@ import (
 // read/write operations over cluster resources. Each Client is bound to one
 // kubeconfig context; the Manager holds one Client per context.
 type Client struct {
-	cs      *kubernetes.Clientset
+	// kubernetes.Interface rather than *Clientset so tests can substitute
+	// client-go's fake clientset — the mutating paths (scale, restart, delete,
+	// apply) are the ones worth pinning down.
+	cs      kubernetes.Interface
 	metrics *metricsv.Clientset
 	cfg     *rest.Config
 	Context string
@@ -687,7 +690,10 @@ func (c *Client) ScaleDeployment(namespace, name string, replicas int32) error {
 func (c *Client) RestartDeployment(namespace, name string) error {
 	cx, cancel := ctx()
 	defer cancel()
-	patch := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubemind.io/restartedAt":%q}}}}}`,
+	// The same annotation key `kubectl rollout restart` uses, so a restart
+	// triggered here is indistinguishable from one triggered by kubectl and is
+	// recognised by anything watching for it.
+	patch := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":%q}}}}}`,
 		time.Now().Format(time.RFC3339))
 	_, err := c.cs.AppsV1().Deployments(namespace).Patch(cx, name, types.StrategicMergePatchType, []byte(patch), metav1.PatchOptions{})
 	return err

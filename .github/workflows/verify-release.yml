@@ -1,0 +1,98 @@
+name: Verify release
+
+# Installs a published release the way a stranger would, on all three
+# operating systems, and proves the binary runs. This is the check that
+# catches a broken install script, a bad archive name, or a missing
+# checksum — none of which the build workflow can see, because it never
+# downloads what it published.
+#
+# Runs automatically after a release is published, and can be run by hand
+# against any existing tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to verify (default: latest release)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  install-script:
+    name: install.sh (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, macos-13] # arm64 and amd64 macOS
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install from the published release
+        env:
+          KUBEMIND_VERSION: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -eux
+          KUBEMIND_BIN_DIR="$HOME/.kubemind-bin" sh scripts/install.sh
+          "$HOME/.kubemind-bin/kubemind" --version
+
+      # Without a kubeconfig it must fail with the friendly message, not a
+      # panic or a stack trace — this is the first thing many people will see.
+      - name: Fails helpfully with no cluster
+        run: |
+          set -eu
+          out=$(KUBECONFIG=/nonexistent "$HOME/.kubemind-bin/kubemind" 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "kubeconfig" || {
+            echo "expected a kubeconfig hint, got the above"; exit 1; }
+          echo "$out" | grep -qi "panic" && { echo "panicked"; exit 1; } || true
+
+  windows-archive:
+    name: Windows archive
+    runs-on: windows-latest
+    steps:
+      - name: Download and run the .exe
+        shell: pwsh
+        env:
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = $env:TAG
+          if (-not $tag) {
+            $tag = (Invoke-RestMethod "https://api.github.com/repos/${{ github.repository }}/releases/latest").tag_name
+          }
+          $num = $tag.TrimStart("v")
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/kubemind_${num}_windows_amd64.zip"
+          Write-Host "downloading $url"
+          Invoke-WebRequest $url -OutFile kubemind.zip
+          Expand-Archive kubemind.zip -DestinationPath .
+          .\kubemind.exe --version
+
+  container:
+    name: Container image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and run
+        env:
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -eux
+          img="ghcr.io/${{ github.repository_owner }}/kubemind:${TAG#v}"
+          docker pull "$img"
+          docker run --rm "$img" --version
+
+  go-install:
+    name: go install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: |
+          set -eux
+          go install github.com/${{ github.repository }}/cmd/kubemind@${{ github.event.inputs.tag || github.event.release.tag_name }}
+          "$(go env GOPATH)/bin/kubemind" --version

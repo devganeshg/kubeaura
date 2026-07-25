@@ -231,7 +231,8 @@
 <span class="p">$</span> go install github.com/devganeshg/kubemind/cmd/kubemind@latest
 
 <span class="c"># Container</span>
-<span class="p">$</span> docker run --rm -p 7654:8080 -v ~/.kube:/home/nonroot/.kube:ro ghcr.io/devganeshg/kubemind
+<span class="p">$</span> docker run --rm -p 7654:7654 -v ~/.kube:/home/nonroot/.kube:ro ghcr.io/devganeshg/kubemind
+<span class="c">#   (remote clusters; for kind/minikube run the binary directly)</span>
 
 <span class="c"># Windows: grab the .zip from the releases page</span></pre>
 

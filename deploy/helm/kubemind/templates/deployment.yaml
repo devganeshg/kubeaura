@@ -25,10 +25,10 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 7654
           env:
             - name: KUBEMIND_ADDR
-              value: ":8080"
+              value: ":7654"
             # A shared instance answers on the Pod IP and on the Ingress host,
             # so the loopback-only host check is relaxed. That is precisely why
             # the Ingress in front of it must authenticate users.

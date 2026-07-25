@@ -18,8 +18,8 @@ make check
 #    and add today's date. Update the version badge in README.md.
 
 # 3. Commit, tag, push.
-git commit -s -am "release: v0.10.0"
-git tag -a v0.10.0 -m "v0.10.0"
+git commit -s -am "release: v0.1.0"
+git tag -a v0.1.0 -m "v0.1.0"
 git push origin main --follow-tags
 ```
 

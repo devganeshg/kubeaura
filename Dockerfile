@@ -1,5 +1,8 @@
 # ---- build stage ----
-FROM golang:1.26 AS build
+# Pinned to the patch release go.mod requires: the official images set
+# GOTOOLCHAIN=local, so a 1.26.4 base cannot auto-fetch 1.26.5 and the build
+# fails outright.
+FROM golang:1.26.5 AS build
 WORKDIR /src
 
 # Cache module downloads
@@ -18,6 +21,13 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # TLS) and runs as an unprivileged user by default.
 FROM gcr.io/distroless/static:nonroot
 COPY --from=build /out/kubemind /kubemind
-EXPOSE 8080
+
+# The binary binds loopback by default, which is right on a workstation and
+# wrong in a container: loopback here is the container itself, so `-p` would
+# publish a port nothing is listening on. The container boundary is the
+# isolation, so bind all interfaces inside it.
+ENV KUBEMIND_ADDR=:7654
+EXPOSE 7654
+
 USER nonroot:nonroot
 ENTRYPOINT ["/kubemind"]

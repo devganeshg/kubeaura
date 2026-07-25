@@ -7,7 +7,7 @@
 
 **An AI-assisted Kubernetes cockpit you run yourself — one binary, your kubeconfig, zero setup.**
 
-[![Version](https://img.shields.io/badge/version-v0.9.0-ff4000)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.1.0-ff4000)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Go](https://img.shields.io/badge/go-%3E%3D1.26-00ADD8?logo=go&logoColor=white)](go.mod)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-3fb950)](CONTRIBUTING.md)
@@ -92,9 +92,29 @@ and put `kubemind.exe` anywhere on your `PATH`.
 ### Container
 
 ```bash
-docker run --rm -p 7654:8080 -v ~/.kube:/home/nonroot/.kube:ro \
+docker run --rm -p 7654:7654 \
+  -v ~/.kube:/home/nonroot/.kube:ro \
   ghcr.io/devganeshg/kubemind
 ```
+
+Then open <http://127.0.0.1:7654>. Multi-arch (amd64 + arm64), distroless,
+runs as non-root.
+
+> **If your cluster is local (kind, minikube, k3d), this will not connect.**
+> Their kubeconfigs point at `127.0.0.1:<port>`, and inside a container that
+> means the container itself. Either run the binary directly — which is the
+> better experience anyway — or, on Linux, share the host network:
+>
+> ```bash
+> docker run --rm --network host -v ~/.kube:/home/nonroot/.kube:ro \
+>   ghcr.io/devganeshg/kubemind
+> ```
+>
+> On macOS and Windows, Docker Desktop has no host network, so point the
+> kubeconfig at `host.docker.internal` instead. The container is most useful
+> for **remote** clusters (EKS, GKE, AKS) and for running in-cluster — for
+> which the [Helm chart](#run-a-shared-instance-in-cluster-optional) is the
+> supported path.
 
 ### With Go installed
 
@@ -678,7 +698,7 @@ Because of that, the shipped defaults are conservative:
 helm install kubemind deploy/helm/kubemind -n kubemind --create-namespace
 # or, without Helm:
 kubectl apply -f deploy/kubernetes/install.yaml
-kubectl -n kubemind port-forward svc/kubemind 8080:80
+kubectl -n kubemind port-forward svc/kubemind 7654:80
 ```
 
 Port-forwarding (as above) keeps the instance reachable only by you and needs
@@ -722,13 +742,13 @@ See [`docs/internal/requirements.txt`](docs/internal/requirements.txt) for the f
 ## Versioning & releases
 
 KubeMind follows [SemVer](https://semver.org). The current version is
-**v0.9.0** (pre-1.0: minor versions may include breaking changes) — see
+**v0.1.0** (pre-1.0: minor versions may include breaking changes) — see
 [CHANGELOG.md](CHANGELOG.md) for what's new in each release.
 
 - The binary reports its version in the header badge and at `/api/health`.
 - Version is injected at build time: `make build` stamps `git describe`,
   and [GoReleaser](.goreleaser.yaml) handles tagged releases
-  (`git tag v0.9.0 && git push --tags` builds darwin/linux/windows,
+  (`git tag v0.1.0 && git push --tags` builds darwin/linux/windows,
   amd64 + arm64).
 
 ## Contributing
