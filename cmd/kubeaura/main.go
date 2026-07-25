@@ -38,14 +38,18 @@ var version = "dev"
 // say which version they are running in a bug report. The module version the
 // toolchain stamped in is the honest answer.
 func init() {
-	if version != "dev" {
-		return
+	if version == "dev" {
+		info, ok := debug.ReadBuildInfo()
+		if ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			version = info.Main.Version
+		}
 	}
-	info, ok := debug.ReadBuildInfo()
-	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
-		return
+	// GoReleaser stamps a bare "0.1.1" while the module version is "v0.1.1",
+	// so the same release reported two different strings depending on how it
+	// was installed. Settle on the tag form everywhere.
+	if len(version) > 0 && version[0] >= '0' && version[0] <= '9' {
+		version = "v" + version
 	}
-	version = info.Main.Version
 }
 
 func main() {

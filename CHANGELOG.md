@@ -7,6 +7,11 @@ they do, it will say so here.
 
 ## [Unreleased]
 
+### Fixed
+
+- `kubeaura --version` printed `0.1.1` from a release download but `v0.1.1`
+  from `go install`. Both report the tag form now.
+
 ## [v0.1.1] — 2026-07-26
 
 Repairs the v0.1.0 release pipeline. No behaviour changes to the cockpit
