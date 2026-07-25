@@ -10,7 +10,7 @@ import (
 )
 
 // Kyverno, OPA Gatekeeper (via export), and other policy engines write the
-// Kubernetes Policy WG's standard PolicyReport CRD. KubeMind reads whatever
+// Kubernetes Policy WG's standard PolicyReport CRD. KubeAura reads whatever
 // engine produced them — detect-don't-install, roadmap item 3.
 var (
 	policyReportGVRs = []schema.GroupVersionResource{

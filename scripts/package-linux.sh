@@ -1,6 +1,6 @@
 #!/bin/sh
 # Cross-compile and package the Linux desktop app (Headlamp-style tarball):
-#   dist/kubemind-linux-<arch>.tar.gz
+#   dist/kubeaura-linux-<arch>.tar.gz
 # Run via `make app-linux` (ARCH=arm64 for ARM machines).
 #
 # Built without the `desktop` tag: the native webview needs cgo, which does
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 VERSION=${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}
 ARCH=${ARCH:-amd64}
-NAME=kubemind-linux-$ARCH
+NAME=kubeaura-linux-$ARCH
 STAGE=dist/$NAME
 TARBALL=dist/$NAME.tar.gz
 ICON_SRC=assets/png/logo-mark-512.png
@@ -25,19 +25,19 @@ cp LICENSE NOTICE THIRD_PARTY_LICENSES.md "$STAGE/"
 
 CGO_ENABLED=0 GOOS=linux GOARCH=$ARCH go build -trimpath \
   -ldflags "-s -w -X main.version=$VERSION" \
-  -o "$STAGE/kubemind" ./cmd/kubemind
+  -o "$STAGE/kubeaura" ./cmd/kubeaura
 
-cp "$ICON_SRC" "$STAGE/kubemind.png"
+cp "$ICON_SRC" "$STAGE/kubeaura.png"
 
 # Exec is rewritten to an absolute path by install.sh; this default works
 # when the binary is already on $PATH.
-cat > "$STAGE/kubemind.desktop" <<'DESKTOP'
+cat > "$STAGE/kubeaura.desktop" <<'DESKTOP'
 [Desktop Entry]
 Type=Application
-Name=KubeMind
+Name=KubeAura
 Comment=AI-assisted Kubernetes dashboard for your existing kubeconfig
-Exec=kubemind --desktop
-Icon=kubemind
+Exec=kubeaura --desktop
+Icon=kubeaura
 Terminal=false
 Categories=Development;System;
 Keywords=kubernetes;k8s;cluster;ai;
@@ -54,25 +54,25 @@ APP_DIR=$HOME/.local/share/applications
 ICON_DIR=$HOME/.local/share/icons/hicolor/512x512/apps
 
 mkdir -p "$BIN_DIR" "$APP_DIR" "$ICON_DIR"
-install -m 755 kubemind "$BIN_DIR/kubemind"
-install -m 644 kubemind.png "$ICON_DIR/kubemind.png"
-sed "s|^Exec=.*|Exec=$BIN_DIR/kubemind --desktop|" kubemind.desktop \
-  > "$APP_DIR/kubemind.desktop"
+install -m 755 kubeaura "$BIN_DIR/kubeaura"
+install -m 644 kubeaura.png "$ICON_DIR/kubeaura.png"
+sed "s|^Exec=.*|Exec=$BIN_DIR/kubeaura --desktop|" kubeaura.desktop \
+  > "$APP_DIR/kubeaura.desktop"
 update-desktop-database "$APP_DIR" 2>/dev/null || true
 
-echo "installed — launch 'KubeMind' from your app menu, or run: $BIN_DIR/kubemind"
-echo "the desktop window needs Chrome or Chromium on \$PATH; without one, run 'kubemind' for browser mode"
+echo "installed — launch 'KubeAura' from your app menu, or run: $BIN_DIR/kubeaura"
+echo "the desktop window needs Chrome or Chromium on \$PATH; without one, run 'kubeaura' for browser mode"
 INSTALL
 chmod +x "$STAGE/install.sh"
 
 cat > "$STAGE/README.txt" <<EOF
-KubeMind $VERSION — Linux ($ARCH)
+KubeAura $VERSION — Linux ($ARCH)
 
 Run ./install.sh to install for your user (binary in ~/.local/bin plus an
-app-menu entry), or just run ./kubemind directly.
+app-menu entry), or just run ./kubeaura directly.
 
 The desktop window uses Chrome/Chromium app mode; with no Chromium-family
-browser installed, KubeMind falls back to serving http://localhost:8080
+browser installed, KubeAura falls back to serving http://localhost:8080
 in your default browser. It reads your existing kubeconfig (~/.kube/config).
 EOF
 

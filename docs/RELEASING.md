@@ -1,4 +1,4 @@
-# Releasing KubeMind
+# Releasing KubeAura
 
 Everything is driven by a git tag. Pushing `vX.Y.Z` runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which:
@@ -6,7 +6,7 @@ Everything is driven by a git tag. Pushing `vX.Y.Z` runs
 1. builds binaries for linux/darwin/windows × amd64/arm64 with GoReleaser,
 2. attaches them to a GitHub Release with `checksums.txt`, `LICENSE`, `NOTICE`,
    and `THIRD_PARTY_LICENSES.md`,
-3. builds and pushes `ghcr.io/<owner>/kubemind` for amd64 + arm64.
+3. builds and pushes `ghcr.io/<owner>/kubeaura` for amd64 + arm64.
 
 ## Cutting a release
 
@@ -27,15 +27,15 @@ Watch the Actions tab. When it's green, verify the release actually works
 before announcing it:
 
 ```bash
-curl -sSfL https://raw.githubusercontent.com/devganeshg/kubemind/main/scripts/install.sh | sh
-kubemind --version
+curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
+kubeaura --version
 ```
 
 ## Versioning
 
 [SemVer](https://semver.org). Pre-1.0, minor versions may break things — say so
 in the CHANGELOG when they do. The version is stamped into the binary at build
-time via `-ldflags -X main.version=`, and surfaces in `kubemind --version`, the
+time via `-ldflags -X main.version=`, and surfaces in `kubeaura --version`, the
 UI header, and `/api/health`.
 
 ## Package managers (optional, off by default)
@@ -45,7 +45,7 @@ commented out on purpose. GoReleaser resolves `{{ .Env.* }}` at release time, so
 enabling a block without its secret **fails the entire release** — including the
 binaries that would otherwise have published fine.
 
-To enable Homebrew (`brew install devganeshg/tap/kubemind`):
+To enable Homebrew (`brew install devganeshg/tap/kubeaura`):
 
 1. Create a **public** repo `devganeshg/homebrew-tap` (the `homebrew-` prefix is
    required; `brew` maps `devganeshg/tap` to it).
@@ -61,14 +61,14 @@ container image all work — that is a complete install story on its own.
 
 ## Docker Hub (optional)
 
-Every release publishes `ghcr.io/devganeshg/kubemind` automatically — no setup,
+Every release publishes `ghcr.io/devganeshg/kubeaura` automatically — no setup,
 no account, no pull rate limits. That is enough on its own.
 
 Docker Hub is worth adding anyway because it is where most people look first.
 It is skipped unless both secrets exist, so a missing account can never fail a
 release:
 
-1. Create a Docker Hub account and a repository named `kubemind`.
+1. Create a Docker Hub account and a repository named `kubeaura`.
 2. Account Settings → **Personal access tokens** → create one with
    **Read, Write, Delete** scope. Copy it; it is shown once.
 3. In this repo: Settings → Secrets and variables → Actions → add

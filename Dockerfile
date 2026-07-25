@@ -14,20 +14,20 @@ COPY . .
 ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
-    -o /out/kubemind ./cmd/kubemind
+    -o /out/kubeaura ./cmd/kubeaura
 
 # ---- runtime stage ----
 # distroless/static:nonroot ships CA certs (for the Anthropic API + in-cluster
 # TLS) and runs as an unprivileged user by default.
 FROM gcr.io/distroless/static:nonroot
-COPY --from=build /out/kubemind /kubemind
+COPY --from=build /out/kubeaura /kubeaura
 
 # The binary binds loopback by default, which is right on a workstation and
 # wrong in a container: loopback here is the container itself, so `-p` would
 # publish a port nothing is listening on. The container boundary is the
 # isolation, so bind all interfaces inside it.
-ENV KUBEMIND_ADDR=:7654
+ENV KUBEAURA_ADDR=:7654
 EXPOSE 7654
 
 USER nonroot:nonroot
-ENTRYPOINT ["/kubemind"]
+ENTRYPOINT ["/kubeaura"]

@@ -1,4 +1,4 @@
-module github.com/devganeshg/kubemind
+module github.com/devganeshg/kubeaura
 
 go 1.26.5
 

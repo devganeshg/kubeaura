@@ -7,15 +7,15 @@
 # Run this after any dependency change; CI verifies the file is up to date.
 set -e
 OUT=THIRD_PARTY_LICENSES.md
-TMPBIN=$(mktemp -d)/kubemind
+TMPBIN=$(mktemp -d)/kubeaura
 MC=$(go env GOMODCACHE)
 
-CGO_ENABLED=0 go build -o "$TMPBIN" ./cmd/kubemind
+CGO_ENABLED=0 go build -o "$TMPBIN" ./cmd/kubeaura
 
 cat > "$OUT" <<'HDR'
 # Third-party licenses
 
-KubeMind is distributed as a single statically linked binary. The binary
+KubeAura is distributed as a single statically linked binary. The binary
 embeds the Go modules listed below. Each dependency remains under its own
 license and copyright; this file is provided to satisfy the attribution
 requirements of those licenses (notably Apache-2.0 section 4).
@@ -25,7 +25,7 @@ Go module cache under `$(go env GOMODCACHE)/<module>@<version>/LICENSE`.
 
 **Weak-copyleft notice (MPL-2.0):** `github.com/hashicorp/go-cleanhttp` and
 `github.com/hashicorp/go-retryablehttp` are licensed under the Mozilla Public
-License 2.0. Their source is available unmodified at the URLs below; KubeMind
+License 2.0. Their source is available unmodified at the URLs below; KubeAura
 makes no modifications to either module.
 
 | Module | Version | License |

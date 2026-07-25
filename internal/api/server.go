@@ -1,4 +1,4 @@
-// Package api wires the HTTP routes for KubeMind: a JSON API over the
+// Package api wires the HTTP routes for KubeAura: a JSON API over the
 // Kubernetes client and AI Assistant, plus the embedded single-page web UI.
 package api
 
@@ -15,13 +15,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	"github.com/devganeshg/kubemind/internal/ai"
-	"github.com/devganeshg/kubemind/internal/artifactory"
-	"github.com/devganeshg/kubemind/internal/dockerfile"
-	"github.com/devganeshg/kubemind/internal/gitlab"
-	"github.com/devganeshg/kubemind/internal/k8s"
-	"github.com/devganeshg/kubemind/internal/rag"
-	"github.com/devganeshg/kubemind/internal/rbac"
+	"github.com/devganeshg/kubeaura/internal/ai"
+	"github.com/devganeshg/kubeaura/internal/artifactory"
+	"github.com/devganeshg/kubeaura/internal/dockerfile"
+	"github.com/devganeshg/kubeaura/internal/gitlab"
+	"github.com/devganeshg/kubeaura/internal/k8s"
+	"github.com/devganeshg/kubeaura/internal/rag"
+	"github.com/devganeshg/kubeaura/internal/rbac"
 )
 
 // Server holds the dependencies shared by all handlers.

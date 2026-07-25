@@ -1,35 +1,35 @@
-# KubeMind — all-in-one install (no Helm required).
+# KubeAura — all-in-one install (no Helm required).
 #
-#   kubectl apply -f https://raw.githubusercontent.com/devganeshg/kubemind/main/deploy/kubernetes/install.yaml
-#   kubectl -n kubemind port-forward svc/kubemind 7654:80
+#   kubectl apply -f https://raw.githubusercontent.com/devganeshg/kubeaura/main/deploy/kubernetes/install.yaml
+#   kubectl -n kubeaura port-forward svc/kubeaura 7654:80
 #   open http://localhost:7654
 #
 # SECURITY — read before exposing this beyond port-forward:
-# KubeMind has no login of its own. Anyone who can reach this Service acts
+# KubeAura has no login of its own. Anyone who can reach this Service acts
 # with the ServiceAccount below. This manifest therefore ships read-only (no
 # create/update/delete verbs) and without Secrets read access. If you put it
 # behind an Ingress, authenticate that Ingress first (oauth2-proxy, your SSO).
 #
 # To enable the AI Assistant, create the secret before/after applying:
-#   kubectl -n kubemind create secret generic kubemind \
+#   kubectl -n kubeaura create secret generic kubeaura \
 #     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
 # (the Deployment reads it optionally; without it the UI runs without AI.)
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: kubemind
+  name: kubeaura
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kubemind
-  namespace: kubemind
+  name: kubeaura
+  namespace: kubeaura
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubemind
+  name: kubeaura
 rules:
   - apiGroups: [""]
     # Secrets are deliberately absent: granting them here would expose every
@@ -73,37 +73,37 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kubemind
+  name: kubeaura
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kubemind
+  name: kubeaura
 subjects:
   - kind: ServiceAccount
-    name: kubemind
-    namespace: kubemind
+    name: kubeaura
+    namespace: kubeaura
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubemind
-  namespace: kubemind
-  labels: { app.kubernetes.io/name: kubemind }
+  name: kubeaura
+  namespace: kubeaura
+  labels: { app.kubernetes.io/name: kubeaura }
 spec:
   replicas: 1
   selector:
-    matchLabels: { app.kubernetes.io/name: kubemind }
+    matchLabels: { app.kubernetes.io/name: kubeaura }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: kubemind }
+      labels: { app.kubernetes.io/name: kubeaura }
     spec:
-      serviceAccountName: kubemind
+      serviceAccountName: kubeaura
       securityContext:
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }
       containers:
-        - name: kubemind
-          image: ghcr.io/devganeshg/kubemind:latest
+        - name: kubeaura
+          image: ghcr.io/devganeshg/kubeaura:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -113,19 +113,19 @@ spec:
             - name: http
               containerPort: 7654
           env:
-            - name: KUBEMIND_ADDR
+            - name: KUBEAURA_ADDR
               value: ":7654"
             # A shared instance must answer on the Pod IP and on whatever host
             # your Service or Ingress uses, so the loopback-only host check is
             # relaxed here. It is the reason the Ingress must authenticate.
-            - name: KUBEMIND_ALLOW_REMOTE
+            - name: KUBEAURA_ALLOW_REMOTE
               value: "1"
             - name: ANTHROPIC_MODEL
               value: claude-opus-5
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: kubemind
+                  name: kubeaura
                   key: ANTHROPIC_API_KEY
                   optional: true
           readinessProbe:
@@ -143,12 +143,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: kubemind
-  namespace: kubemind
-  labels: { app.kubernetes.io/name: kubemind }
+  name: kubeaura
+  namespace: kubeaura
+  labels: { app.kubernetes.io/name: kubeaura }
 spec:
   type: ClusterIP
-  selector: { app.kubernetes.io/name: kubemind }
+  selector: { app.kubernetes.io/name: kubeaura }
   ports:
     - name: http
       port: 80

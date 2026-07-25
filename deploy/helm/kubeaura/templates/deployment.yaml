@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kubemind.fullname" . }}
+  name: {{ include "kubeaura.fullname" . }}
   labels:
-    {{- include "kubemind.labels" . | nindent 4 }}
+    {{- include "kubeaura.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "kubemind.selectorLabels" . | nindent 6 }}
+      {{- include "kubeaura.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "kubemind.selectorLabels" . | nindent 8 }}
+        {{- include "kubeaura.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "kubemind.serviceAccountName" . }}
+      serviceAccountName: {{ include "kubeaura.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: kubemind
+        - name: kubeaura
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
@@ -27,12 +27,12 @@ spec:
             - name: http
               containerPort: 7654
           env:
-            - name: KUBEMIND_ADDR
+            - name: KUBEAURA_ADDR
               value: ":7654"
             # A shared instance answers on the Pod IP and on the Ingress host,
             # so the loopback-only host check is relaxed. That is precisely why
             # the Ingress in front of it must authenticate users.
-            - name: KUBEMIND_ALLOW_REMOTE
+            - name: KUBEAURA_ALLOW_REMOTE
               value: "1"
             - name: ANTHROPIC_MODEL
               value: {{ .Values.ai.model | quote }}
@@ -40,7 +40,7 @@ spec:
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "kubemind.secretName" . }}
+                  name: {{ include "kubeaura.secretName" . }}
                   key: ANTHROPIC_API_KEY
             {{- end }}
           readinessProbe:

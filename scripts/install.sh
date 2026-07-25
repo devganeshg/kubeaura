@@ -1,19 +1,19 @@
 #!/bin/sh
-# KubeMind installer for macOS and Linux.
+# KubeAura installer for macOS and Linux.
 #
-#   curl -sSfL https://raw.githubusercontent.com/devganeshg/kubemind/main/scripts/install.sh | sh
+#   curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
 #
 # Downloads the release archive for your platform, verifies it against the
 # published checksums, and installs the binary. Nothing else on your system is
 # touched: no daemon, no config written, no shell profile edited.
 #
 # Environment:
-#   KUBEMIND_VERSION   version to install (default: latest release)
-#   KUBEMIND_BIN_DIR   install directory (default: /usr/local/bin, else ~/.local/bin)
+#   KUBEAURA_VERSION   version to install (default: latest release)
+#   KUBEAURA_BIN_DIR   install directory (default: /usr/local/bin, else ~/.local/bin)
 set -eu
 
-REPO="devganeshg/kubemind"
-VERSION="${KUBEMIND_VERSION:-}"
+REPO="devganeshg/kubeaura"
+VERSION="${KUBEAURA_VERSION:-}"
 
 say()  { printf '%s\n' "$*"; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -43,25 +43,25 @@ arch=$(uname -m)
 case "$arch" in
   x86_64|amd64) arch=amd64 ;;
   arm64|aarch64) arch=arm64 ;;
-  *) die "unsupported architecture '$arch'. Build from source: go install github.com/$REPO/cmd/kubemind@latest" ;;
+  *) die "unsupported architecture '$arch'. Build from source: go install github.com/$REPO/cmd/kubeaura@latest" ;;
 esac
 
 # --- version ------------------------------------------------------------
 if [ -z "$VERSION" ]; then
   VERSION=$(fetch_stdout "https://api.github.com/repos/$REPO/releases/latest" \
     | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
-  [ -n "$VERSION" ] || die "could not determine the latest release. Set KUBEMIND_VERSION, or check
+  [ -n "$VERSION" ] || die "could not determine the latest release. Set KUBEAURA_VERSION, or check
        https://github.com/$REPO/releases"
 fi
 num=${VERSION#v}
 
 # --- download and verify ------------------------------------------------
-archive="kubemind_${num}_${os}_${arch}.tar.gz"
+archive="kubeaura_${num}_${os}_${arch}.tar.gz"
 base="https://github.com/$REPO/releases/download/$VERSION"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-say "Downloading kubemind $VERSION ($os/$arch)…"
+say "Downloading kubeaura $VERSION ($os/$arch)…"
 fetch "$base/$archive" "$tmp/$archive" || die "download failed: $base/$archive"
 
 if fetch "$base/checksums.txt" "$tmp/checksums.txt" 2>/dev/null; then
@@ -82,28 +82,28 @@ else
 fi
 
 tar -xzf "$tmp/$archive" -C "$tmp"
-[ -f "$tmp/kubemind" ] || die "archive did not contain a kubemind binary"
+[ -f "$tmp/kubeaura" ] || die "archive did not contain a kubeaura binary"
 
 # --- install ------------------------------------------------------------
-if [ -n "${KUBEMIND_BIN_DIR:-}" ]; then
-  bindir="$KUBEMIND_BIN_DIR"
+if [ -n "${KUBEAURA_BIN_DIR:-}" ]; then
+  bindir="$KUBEAURA_BIN_DIR"
 elif [ -w /usr/local/bin ] 2>/dev/null; then
   bindir=/usr/local/bin
 else
   bindir="$HOME/.local/bin"
 fi
 mkdir -p "$bindir"
-install -m 0755 "$tmp/kubemind" "$bindir/kubemind" 2>/dev/null \
-  || { cp "$tmp/kubemind" "$bindir/kubemind" && chmod 0755 "$bindir/kubemind"; }
+install -m 0755 "$tmp/kubeaura" "$bindir/kubeaura" 2>/dev/null \
+  || { cp "$tmp/kubeaura" "$bindir/kubeaura" && chmod 0755 "$bindir/kubeaura"; }
 
 say ""
-say "Installed $bindir/kubemind"
+say "Installed $bindir/kubeaura"
 case ":$PATH:" in
-  *":$bindir:"*) say "Run:  kubemind" ;;
+  *":$bindir:"*) say "Run:  kubeaura" ;;
   *) say "  $bindir is not on your PATH. Add it:"
      say "    echo 'export PATH=\"$bindir:\$PATH\"' >> ~/.profile"
-     say "  Then run:  kubemind" ;;
+     say "  Then run:  kubeaura" ;;
 esac
 say ""
-say "KubeMind uses your existing kubeconfig and serves http://127.0.0.1:8080."
-say "Optional AI setup:  kubemind config init"
+say "KubeAura uses your existing kubeconfig and serves http://127.0.0.1:8080."
+say "Optional AI setup:  kubeaura config init"

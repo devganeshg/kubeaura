@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-  <img src="assets/logo.svg" alt="KubeMind" width="340">
+  <img src="assets/logo.svg" alt="KubeAura" width="340">
 </picture>
 
 **An AI-assisted Kubernetes cockpit you run yourself — one binary, your kubeconfig, zero setup.**
@@ -16,27 +16,27 @@
 
 ---
 
-KubeMind is a single, self-contained binary in the spirit of k9s, Lens,
+KubeAura is a single, self-contained binary in the spirit of k9s, Lens,
 and Headlamp — you already have a kubeconfig, so you just run it and see your
 clusters. No server to deploy, no database, nothing to host, and nothing
 leaves your machine unless you point the AI at a hosted model.
 
 ```bash
-kubemind        # reads your current kube context, opens http://127.0.0.1:7654
+kubeaura        # reads your current kube context, opens http://127.0.0.1:7654
 ```
 
 <div align="center">
-  <img src="assets/screenshots/dashboard.jpg" alt="KubeMind command center: cluster health, live intelligence feed, and agent status" width="900">
+  <img src="assets/screenshots/dashboard.jpg" alt="KubeAura command center: cluster health, live intelligence feed, and agent status" width="900">
 </div>
 
 **Highlights**
 
 - 🖥️ **Full cluster cockpit** — command-center dashboard, metrics heatmaps, alert triage, topology graph, quota dashboard, 19 resource kinds with logs / exec / YAML diff-apply
 - 🧠 **AI Assistant** (pluggable: Anthropic, Ollama-local, any OpenAI-compatible) — diagnose pods, explain architecture, review YAML, summarize logs
-- 🎙️ **Talk to KubeMind** — a voice assistant available on every view: ask questions aloud, get spoken answers grounded in live cluster state, and issue commands ("scale web-frontend to 3") with confirmation gating
+- 🎙️ **Talk to KubeAura** — a voice assistant available on every view: ask questions aloud, get spoken answers grounded in live cluster state, and issue commands ("scale web-frontend to 3") with confirmation gating
 - 🪟 **Native desktop app** — the same binary opens as a desktop window on macOS, Windows, or Linux (system webview, no Electron)
 - 🔌 **Ecosystem-aware, detect-don't-install** — lights up Security (Trivy Operator CVEs), Policy (Kyverno/OPA reports), GitOps (Argo CD + Flux sync), Autoscaling (HPA + KEDA), and cert-manager expiry alerts *when those CRDs exist*, degrades gracefully when they don't
-- 🎨 **Dark & light glass UI** in the KubeMind brand palette with keyboard-first navigation (⌘K omnibox)
+- 🎨 **Dark & light glass UI** in the KubeAura brand palette with keyboard-first navigation (⌘K omnibox)
 - 🔒 **RBAC-honest** — actions you can't perform are greyed out, forbidden reads degrade per-panel instead of breaking the page
 - 🛡️ **Loopback by default** — binds `127.0.0.1`, refuses cross-origin and rebinding requests, and never writes your API keys to disk
 
@@ -60,45 +60,45 @@ kubemind        # reads your current kube context, opens http://127.0.0.1:7654
 - [Versioning & releases](#versioning--releases)
 - [Contributing](#contributing)
 
-**Website:** [devganeshg.github.io/kubemind](https://devganeshg.github.io/kubemind/)
+**Website:** [devganeshg.github.io/kubeaura](https://devganeshg.github.io/kubeaura/)
 
 ---
 
 ## Installation
 
-KubeMind is a single binary for Linux, macOS, and Windows. Every release
+KubeAura is a single binary for Linux, macOS, and Windows. Every release
 publishes archives plus a `checksums.txt` on the
-[releases page](https://github.com/devganeshg/kubemind/releases).
+[releases page](https://github.com/devganeshg/kubeaura/releases).
 
 ### macOS
 
 ```bash
 # Downloads, verifies the checksum, installs to /usr/local/bin
-curl -sSfL https://raw.githubusercontent.com/devganeshg/kubemind/main/scripts/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
 ```
 
 ### Linux
 
 ```bash
 # /usr/local/bin if writable, otherwise ~/.local/bin
-curl -sSfL https://raw.githubusercontent.com/devganeshg/kubemind/main/scripts/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
 ```
 
 ### Windows
 
-Download the `.zip` from the [releases page](https://github.com/devganeshg/kubemind/releases)
-and put `kubemind.exe` anywhere on your `PATH`.
+Download the `.zip` from the [releases page](https://github.com/devganeshg/kubeaura/releases)
+and put `kubeaura.exe` anywhere on your `PATH`.
 
 ### Container
 
 ```bash
 docker run --rm -p 7654:7654 \
   -v ~/.kube:/home/nonroot/.kube:ro \
-  ghcr.io/devganeshg/kubemind
+  ghcr.io/devganeshg/kubeaura
 ```
 
 Then open <http://127.0.0.1:7654>. Multi-arch (amd64 + arm64), distroless,
-runs as non-root. Also on Docker Hub as `devganeshg/kubemind` — `ghcr.io` has
+runs as non-root. Also on Docker Hub as `devganeshg/kubeaura` — `ghcr.io` has
 no pull rate limits, so prefer it if you hit one.
 
 > **If your cluster is local (kind, minikube, k3d), this will not connect.**
@@ -108,7 +108,7 @@ no pull rate limits, so prefer it if you hit one.
 >
 > ```bash
 > docker run --rm --network host -v ~/.kube:/home/nonroot/.kube:ro \
->   ghcr.io/devganeshg/kubemind
+>   ghcr.io/devganeshg/kubeaura
 > ```
 >
 > On macOS and Windows, Docker Desktop has no host network, so point the
@@ -120,21 +120,21 @@ no pull rate limits, so prefer it if you hit one.
 ### With Go installed
 
 ```bash
-go install github.com/devganeshg/kubemind/cmd/kubemind@latest
+go install github.com/devganeshg/kubeaura/cmd/kubeaura@latest
 ```
 
 ### Building from source
 
-KubeMind builds with the Go version in [`go.mod`](go.mod) (1.26+). The web UI
+KubeAura builds with the Go version in [`go.mod`](go.mod) (1.26+). The web UI
 is embedded with `go:embed`, so there is no Node, npm, or bundler step.
 
 ```bash
-git clone https://github.com/devganeshg/kubemind.git
-cd kubemind
-make build && ./bin/kubemind
+git clone https://github.com/devganeshg/kubeaura.git
+cd kubeaura
+make build && ./bin/kubeaura
 ```
 
-`make install` additionally packages and installs `/Applications/KubeMind.app`
+`make install` additionally packages and installs `/Applications/KubeAura.app`
 on macOS (needs the Xcode Command Line Tools: `xcode-select --install`). See
 [Desktop app](#desktop-app-macos--windows--linux) for Windows and Linux
 packaging.
@@ -150,7 +150,7 @@ sha256sum -c checksums.txt --ignore-missing     # shasum -a 256 on macOS
 > Clear the download quarantine flag once:
 >
 > ```bash
-> xattr -dr com.apple.quarantine /Applications/KubeMind.app   # or the binary
+> xattr -dr com.apple.quarantine /Applications/KubeAura.app   # or the binary
 > ```
 
 ### In a cluster
@@ -166,62 +166,62 @@ For a shared instance behind your own authentication, see
 
 ## Quick start
 
-You need access to a cluster — if `kubectl` works for you, KubeMind works.
+You need access to a cluster — if `kubectl` works for you, KubeAura works.
 
 ```bash
-kubemind                  # reads your current context, opens http://127.0.0.1:7654
-kubemind --desktop        # same thing in a desktop window
-kubemind --help           # every flag and environment variable
+kubeaura                  # reads your current context, opens http://127.0.0.1:7654
+kubeaura --desktop        # same thing in a desktop window
+kubeaura --help           # every flag and environment variable
 ```
 
-That's it. KubeMind uses **your existing kubeconfig** and only the permissions
+That's it. KubeAura uses **your existing kubeconfig** and only the permissions
 your current credentials already have — it can do exactly what you can do with
 `kubectl`, no more. Switch clusters from the **Cluster** dropdown in the header
 (it lists every context in your kubeconfig), or start on a specific one with
-`kubemind --context staging`.
+`kubeaura --context staging`.
 
 Two optional next steps:
 
 ```bash
-kubemind config init      # write a commented config file you can keep
+kubeaura config init      # write a commented config file you can keep
 ```
 
 …and [turn on the AI assistant](#turn-on-the-ai-assistant-optional), which is
 off until you point it at a model.
 
-> **What to expect from `--desktop`:** if Chrome/Edge is installed, KubeMind
+> **What to expect from `--desktop`:** if Chrome/Edge is installed, KubeAura
 > opens in a **Chromium app-mode window** — a standalone desktop window with no
 > tabs or address bar. Because Chrome renders that window, **the Dock shows the
 > Chrome icon**, which can look like "it opened in the browser". It didn't —
 > it's a dedicated app window, and this mode is preferred because voice input
-> only works in Chromium. To get a native window with the KubeMind Dock icon
+> only works in Chromium. To get a native window with the KubeAura Dock icon
 > instead (voice input won't work there), see
 > [Desktop app](#desktop-app-macos--windows--linux).
 
 > **Tip:** live CPU/memory charts, heatmaps, and the inline pod metrics need
 > [metrics-server](https://github.com/kubernetes-sigs/metrics-server) installed
-> in the cluster. Everything else works without it; KubeMind detects it
+> in the cluster. Everything else works without it; KubeAura detects it
 > automatically and hides the usage panels when it's absent.
 
 ---
 
 ## Desktop app (macOS / Windows / Linux)
 
-KubeMind can run as a **desktop window** instead of a browser tab. Desktop
+KubeAura can run as a **desktop window** instead of a browser tab. Desktop
 mode picks the best window it can find:
 
 1. **Chrome / Edge / Chromium app mode** (preferred) — a chromeless desktop
    window with the full Web Speech API, so **voice input works in the desktop
    app**. Used automatically when a Chromium-family browser is installed.
    Note: because Chrome renders the window, **the Dock/taskbar shows the
-   Chrome icon**, not KubeMind's — it's still a standalone app window (no
+   Chrome icon**, not KubeAura's — it's still a standalone app window (no
    tabs, no address bar), not a browser tab.
 2. **Native system webview** (WKWebView / WebView2 / WebKitGTK via
    [webview_go](https://github.com/webview/webview_go)) — a truly native
-   window with the KubeMind Dock icon. Used as the fallback when no Chromium
+   window with the KubeAura Dock icon. Used as the fallback when no Chromium
    browser exists; voice *output* only (the Web Speech API isn't available, so
    the microphone won't work). Requires the opt-in build tag `desktop` (the
-   default binary stays CGO-free). Set `KUBEMIND_WEBVIEW=1` to force this
+   default binary stays CGO-free). Set `KUBEAURA_WEBVIEW=1` to force this
    even when Chrome is installed.
 
 No Electron, no Node, nothing extra to ship either way.
@@ -229,9 +229,9 @@ No Electron, no Node, nothing extra to ship either way.
 **macOS** (needs the Xcode Command Line Tools: `xcode-select --install`):
 
 ```bash
-make install                    # builds + installs /Applications/KubeMind.app
+make install                    # builds + installs /Applications/KubeAura.app
 # (make install-app is the same thing) — or just package without installing:
-make app && open dist/KubeMind.app
+make app && open dist/KubeAura.app
 ```
 
 Or run the window straight from the terminal:
@@ -240,17 +240,17 @@ Or run the window straight from the terminal:
 make run-desktop
 # or manually:
 make desktop                    # CGO build with -tags desktop
-./bin/kubemind --desktop
+./bin/kubeaura --desktop
 ```
 
 **Windows** — package a ready-to-share zip from any machine with Go (no
 Windows box needed):
 
 ```bash
-make app-windows                # → dist/KubeMind-windows-amd64.zip
+make app-windows                # → dist/KubeAura-windows-amd64.zip
 ```
 
-Unzip on the Windows machine and double-click `KubeMind.bat`. The window
+Unzip on the Windows machine and double-click `KubeAura.bat`. The window
 opens via Chrome/Edge app mode (Edge ships with Windows 10/11). To instead
 build the native-webview variant *on* Windows (needs a C compiler such as
 [MSYS2/MinGW-w64](https://www.msys2.org/), and the
@@ -259,14 +259,14 @@ preinstalled on Windows 11):
 
 ```powershell
 $env:CGO_ENABLED=1
-go build -tags desktop -o kubemind.exe ./cmd/kubemind
-.\kubemind.exe --desktop
+go build -tags desktop -o kubeaura.exe ./cmd/kubeaura
+.\kubeaura.exe --desktop
 ```
 
 **Linux** — package a tarball with an installer from any machine with Go:
 
 ```bash
-make app-linux                  # → dist/kubemind-linux-amd64.tar.gz  (ARCH=arm64 supported)
+make app-linux                  # → dist/kubeaura-linux-amd64.tar.gz  (ARCH=arm64 supported)
 ```
 
 Extract on the Linux machine and run `./install.sh` — it installs the binary
@@ -277,12 +277,12 @@ Linux (needs GTK and WebKitGTK dev packages):
 ```bash
 # Debian/Ubuntu:
 sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
-CGO_ENABLED=1 go build -tags desktop -o bin/kubemind ./cmd/kubemind
-./bin/kubemind --desktop
+CGO_ENABLED=1 go build -tags desktop -o bin/kubeaura ./cmd/kubeaura
+./bin/kubeaura --desktop
 ```
 
 Run it without `--desktop` and the same binary behaves exactly like the normal
-server (`KUBEMIND_DESKTOP=1` also enables the window — that's how the .app
+server (`KUBEAURA_DESKTOP=1` also enables the window — that's how the .app
 bundle does it). If the default port is taken, the desktop app quietly picks a
 free one instead of failing. `make app-all` packages all three OSes into
 `dist/` in one go; prebuilt desktop artifacts are also produced by the
@@ -309,30 +309,30 @@ OpenAI-compatible server. Everything except the AI features works without it.
 | You want…                        | Set these before running                            | Notes                                                                            |
 | -------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------- |
 | **Hosted Claude**                | `ANTHROPIC_API_KEY=sk-ant-…`                        | Highest quality.                                                                 |
-| **Fully local (Ollama)**         | `KUBEMIND_AI_PROVIDER=ollama`                      | Nothing leaves your machine. Run `ollama serve` and `ollama pull <model>` first. |
-| **Any OpenAI-compatible server** | `KUBEMIND_AI_PROVIDER=openai`, `OPENAI_BASE_URL=…` | Works with LocalAI, LM Studio, vLLM, llama.cpp, OpenRouter, Groq, OpenAI.        |
+| **Fully local (Ollama)**         | `KUBEAURA_AI_PROVIDER=ollama`                      | Nothing leaves your machine. Run `ollama serve` and `ollama pull <model>` first. |
+| **Any OpenAI-compatible server** | `KUBEAURA_AI_PROVIDER=openai`, `OPENAI_BASE_URL=…` | Works with LocalAI, LM Studio, vLLM, llama.cpp, OpenRouter, Groq, OpenAI.        |
 
 **Example — fully local with Ollama:**
 
 ```bash
 ollama serve &
 ollama pull llama3.2                 # or qwen2.5:3b, phi3, mistral, …
-export KUBEMIND_AI_PROVIDER=ollama
-export KUBEMIND_AI_MODEL=llama3.2   # optional; llama3.2 is the default
-kubemind
+export KUBEAURA_AI_PROVIDER=ollama
+export KUBEAURA_AI_MODEL=llama3.2   # optional; llama3.2 is the default
+kubeaura
 ```
 
 **Example — OpenAI-compatible endpoint:**
 
 ```bash
-export KUBEMIND_AI_PROVIDER=openai
+export KUBEAURA_AI_PROVIDER=openai
 export OPENAI_BASE_URL=http://localhost:1234/v1   # your server; should end in /v1
 export OPENAI_API_KEY=…                            # optional for local servers
-export KUBEMIND_AI_MODEL=your-model-id
-kubemind
+export KUBEAURA_AI_MODEL=your-model-id
+kubeaura
 ```
 
-If `KUBEMIND_AI_PROVIDER` is unset, KubeMind **auto-detects**: Anthropic if a
+If `KUBEAURA_AI_PROVIDER` is unset, KubeAura **auto-detects**: Anthropic if a
 key is present, then an OpenAI-compatible server, then Ollama. The active backend
 is shown in the Assistant panel header and the startup banner.
 
@@ -378,9 +378,9 @@ a **voice dock** (tap-to-speak mic, live voice status, ⚡ Executive Briefing),
 the header shows a live **system-status chip** (OPTIMAL / DEGRADED / CRITICAL),
 ship clock, **cluster switcher**, **namespace filter**, and **🔍 Search (⌘K)**;
 the footer dock has cluster/telemetry/network chips and the **TALK TO
-KUBEMIND** bar.
+KUBEAURA** bar.
 
-The theme uses the KubeMind logo gradient (**#ff4000 → #ff0072**) over a warm
+The theme uses the KubeAura logo gradient (**#ff4000 → #ff0072**) over a warm
 charcoal glass style, with a light theme available (toggle in the header).
 Sidebar navigation is **parent-child**: collapsible groups whose expand state
 persists across sessions, ordered Observe → Workloads → Network → Platform →
@@ -408,7 +408,7 @@ Config → Cluster → Access → Operate.
 | **Audit**         | A record of every write action you made this session (apply, scale, restart, delete, exec, port-forward).                                                                                 |
 
 The Security, Policy, GitOps, and KEDA views follow a **detect-don't-install**
-pattern: KubeMind reads the relevant CRDs when they exist and shows a friendly
+pattern: KubeAura reads the relevant CRDs when they exist and shows a friendly
 install hint when they don't.
 
 ### Browsing resources
@@ -445,8 +445,8 @@ it to the Assistant.
 Every AI feature runs through whatever model backend you configured (hosted,
 local, or OpenAI-compatible).
 
-- **🎙️ Talk to KubeMind (voice)** — tap the mic in the sidebar dock or the
-  **TALK TO KUBEMIND** bar on any view. You see a live transcript while you
+- **🎙️ Talk to KubeAura (voice)** — tap the mic in the sidebar dock or the
+  **TALK TO KUBEAURA** bar on any view. You see a live transcript while you
   speak, the answer appears in a floating card right where you are (never a
   page change), and it's read aloud. **Conversation mode** reopens the mic
   after each spoken reply so a whole exchange stays hands-free — tap the mic
@@ -477,7 +477,7 @@ local, or OpenAI-compatible).
 
 ## Voice commands guide
 
-Tap the **mic** in the sidebar voice dock (or the **TALK TO KUBEMIND** bar in
+Tap the **mic** in the sidebar voice dock (or the **TALK TO KUBEAURA** bar in
 the footer) and just talk. You'll see a live transcript while you speak; the
 answer appears in a floating card on whatever view you're on and is read
 aloud. After each spoken reply the mic reopens automatically (**conversation
@@ -502,7 +502,7 @@ mode**) — tap the mic again to stop.
 | _"Show logs for web-frontend"_         | Last 100 lines in the answer card                                    |
 | _"Yes, proceed"_ / _"No"_              | Confirms or cancels the pending command                              |
 
-If a name matches several resources, KubeMind lists them and asks which one
+If a name matches several resources, KubeAura lists them and asks which one
 you meant. **Mutations never run without your explicit confirmation.**
 
 ### If the mic doesn't work
@@ -536,22 +536,22 @@ Press **?** in the app for this cheatsheet at any time.
 
 ## Configuration
 
-Nothing is required — KubeMind runs on your kubeconfig alone. Anything you do
+Nothing is required — KubeAura runs on your kubeconfig alone. Anything you do
 want to set can come from three places, in this order of precedence:
 
-**1. Command-line flags** (`kubemind --help` lists them all)
+**1. Command-line flags** (`kubeaura --help` lists them all)
 
 ```bash
-kubemind --context staging --addr 127.0.0.1:9000 --no-browser
-kubemind --ai-provider ollama --ai-model llama3.2
+kubeaura --context staging --addr 127.0.0.1:9000 --no-browser
+kubeaura --ai-provider ollama --ai-model llama3.2
 ```
 
 **2. Environment variables** — the table below. Copy
 [`.env.example`](.env.example) if you like keeping them in a file.
 
-**3. A config file** — `kubemind config init` writes an annotated starter at
-`~/.config/kubemind/config.yaml` (`kubemind config path` prints the location;
-`KUBEMIND_CONFIG` overrides it):
+**3. A config file** — `kubeaura config init` writes an annotated starter at
+`~/.config/kubeaura/config.yaml` (`kubeaura config path` prints the location;
+`KUBEAURA_CONFIG` overrides it):
 
 ```yaml
 addr: 127.0.0.1:7654
@@ -568,12 +568,12 @@ docs:
 
 API keys are never written to this file. Set them in the environment, or — for
 the desktop app, which inherits no shell environment when launched from Finder
-or Explorer — have KubeMind read one from your keychain at startup:
+or Explorer — have KubeAura read one from your keychain at startup:
 
 ```yaml
 ai:
   # macOS keychain; also works with `secret-tool` (Linux) or `op read` (1Password)
-  apiKeyCommand: security find-generic-password -w -s kubemind
+  apiKeyCommand: security find-generic-password -w -s kubeaura
 ```
 
 ### Environment variables
@@ -581,62 +581,62 @@ ai:
 | Variable                     | Default                                   | Purpose                                                               |
 | ---------------------------- | ----------------------------------------- | --------------------------------------------------------------------- |
 | `KUBECONFIG`                 | `~/.kube/config`                          | Which kubeconfig to read.                                             |
-| `KUBEMIND_CONFIG`           | `~/.config/kubemind/config.yaml`         | Config file location.                                                 |
-| `KUBEMIND_CONTEXT`          | _(current-context)_                       | Kube context to start on.                                             |
-| `KUBEMIND_ADDR`             | `127.0.0.1:7654`                          | HTTP listen address. Loopback by default — see [Security](#security--permissions). |
-| `KUBEMIND_ALLOW_REMOTE`     | _(unset)_                                 | Set to `1` to serve non-loopback hosts. Only behind your own auth.    |
-| `KUBEMIND_NO_BROWSER`       | _(unset)_                                 | Set to `1` to not auto-open the browser.                              |
-| `KUBEMIND_AI_PROVIDER`      | _(auto)_                                  | `anthropic`, `ollama`, or `openai`; auto-detects when unset.          |
-| `KUBEMIND_AI_MODEL`         | per-provider                              | Model id (e.g. `claude-opus-5`, `llama3.2`, `gpt-4o-mini`).         |
+| `KUBEAURA_CONFIG`           | `~/.config/kubeaura/config.yaml`         | Config file location.                                                 |
+| `KUBEAURA_CONTEXT`          | _(current-context)_                       | Kube context to start on.                                             |
+| `KUBEAURA_ADDR`             | `127.0.0.1:7654`                          | HTTP listen address. Loopback by default — see [Security](#security--permissions). |
+| `KUBEAURA_ALLOW_REMOTE`     | _(unset)_                                 | Set to `1` to serve non-loopback hosts. Only behind your own auth.    |
+| `KUBEAURA_NO_BROWSER`       | _(unset)_                                 | Set to `1` to not auto-open the browser.                              |
+| `KUBEAURA_AI_PROVIDER`      | _(auto)_                                  | `anthropic`, `ollama`, or `openai`; auto-detects when unset.          |
+| `KUBEAURA_AI_MODEL`         | per-provider                              | Model id (e.g. `claude-opus-5`, `llama3.2`, `gpt-4o-mini`).         |
 | `ANTHROPIC_API_KEY`          | —                                         | Anthropic API key (enables/auto-selects the Anthropic backend).       |
 | `OLLAMA_HOST`                | `http://localhost:11434`                  | Ollama server URL.                                                    |
 | `OPENAI_BASE_URL`            | `https://api.openai.com/v1`               | OpenAI-compatible endpoint.                                           |
 | `OPENAI_API_KEY`             | —                                         | Bearer token for the OpenAI-compatible endpoint (optional for local). |
-| `KUBEMIND_DOCS_RAG_ENABLED` | `1`                                       | Enable docs retrieval for AI query (`/api/ai/query`).                 |
-| `KUBEMIND_DOCS_URL`         | _(unset)_                                 | Docs website base URL (indexes `search/search_index.json`).           |
-| `KUBEMIND_DOCS_PATH`        | `docs`                                    | Local docs fallback path (markdown) if remote index is unavailable.   |
-| `KUBEMIND_DOCS_TOPK`        | `4`                                       | Number of top doc chunks injected into each AI query.                 |
+| `KUBEAURA_DOCS_RAG_ENABLED` | `1`                                       | Enable docs retrieval for AI query (`/api/ai/query`).                 |
+| `KUBEAURA_DOCS_URL`         | _(unset)_                                 | Docs website base URL (indexes `search/search_index.json`).           |
+| `KUBEAURA_DOCS_PATH`        | `docs`                                    | Local docs fallback path (markdown) if remote index is unavailable.   |
+| `KUBEAURA_DOCS_TOPK`        | `4`                                       | Number of top doc chunks injected into each AI query.                 |
 
 ### Docs RAG (bring your own docs)
 
-KubeMind can enrich AI answers with your own documentation site (any MkDocs
+KubeAura can enrich AI answers with your own documentation site (any MkDocs
 site with a search index, e.g. your team's Kubernetes standards docs).
 
-- At startup, KubeMind first loads the MkDocs search index from `KUBEMIND_DOCS_URL` (`.../search/search_index.json`).
-- If the remote index is unavailable, KubeMind falls back to local markdown indexing under `KUBEMIND_DOCS_PATH`.
+- At startup, KubeAura first loads the MkDocs search index from `KUBEAURA_DOCS_URL` (`.../search/search_index.json`).
+- If the remote index is unavailable, KubeAura falls back to local markdown indexing under `KUBEAURA_DOCS_PATH`.
 - On each `AI Query`, it retrieves the top matching doc chunks and injects them into the prompt.
 - The model is instructed to cite docs as `[source: <path>]` when guidance comes from docs.
 
 Example:
 
 ```bash
-export KUBEMIND_DOCS_RAG_ENABLED=1
-export KUBEMIND_DOCS_URL=https://docs.example.com/docs/
-export KUBEMIND_DOCS_PATH=docs   # optional fallback
-export KUBEMIND_DOCS_TOPK=5
-kubemind
+export KUBEAURA_DOCS_RAG_ENABLED=1
+export KUBEAURA_DOCS_URL=https://docs.example.com/docs/
+export KUBEAURA_DOCS_PATH=docs   # optional fallback
+export KUBEAURA_DOCS_TOPK=5
+kubeaura
 ```
 
 ---
 
 ## Security & permissions
 
-KubeMind has **no authentication of its own**. It is designed for one person —
+KubeAura has **no authentication of its own**. It is designed for one person —
 you — running it on your own machine against your own credentials. Everything
 below follows from that.
 
-- **Your RBAC is the boundary.** KubeMind acts as your kubeconfig credential —
+- **Your RBAC is the boundary.** KubeAura acts as your kubeconfig credential —
   it can only read and change what you already can. Actions you lack permission
   for are disabled in the UI (checked via `SelfSubjectAccessReview`).
 - **Loopback by default.** The server binds `127.0.0.1:7654`. Because it can
   apply, delete, and exec, reaching the wider network is a deliberate act:
-  `--allow-remote` (or `KUBEMIND_ALLOW_REMOTE=1`), and only with
+  `--allow-remote` (or `KUBEAURA_ALLOW_REMOTE=1`), and only with
   authentication in front of it.
 - **Cross-origin and DNS-rebinding requests are refused.** A page on another
   site cannot drive your local API: requests are rejected unless the `Host`
   header is loopback and any `Origin` matches the host being served.
 - **Secrets are never persisted.** Cluster state lives in the API server;
-  KubeMind reads it on demand. AI API keys are held in memory only — the
+  KubeAura reads it on demand. AI API keys are held in memory only — the
   config file has no field for them, and `apiKeyCommand` fetches from your
   keychain at startup rather than storing anything.
 - **Data leaves your machine only if you choose a hosted model.** With Ollama or
@@ -657,7 +657,7 @@ Found a vulnerability? [SECURITY.md](SECURITY.md) has the reporting process.
 ## Architecture
 
 ```
-cmd/kubemind     entrypoint (reads kubeconfig, starts server, opens browser;
+cmd/kubeaura     entrypoint (reads kubeconfig, starts server, opens browser;
                   --desktop opens a native webview window instead)
 internal/config   flags + environment + config-file resolution
 internal/k8s      client-go: contexts, list/summary/metrics/alerts/topology/
@@ -677,7 +677,7 @@ streaming) rather than a caching tier of its own.
 
 ## Run a shared instance in-cluster (optional)
 
-Most people run KubeMind locally. If your team instead wants **one shared
+Most people run KubeAura locally. If your team instead wants **one shared
 instance** behind a URL, there's a container image, a Helm chart, and an
 all-in-one manifest under [`deploy/`](deploy/).
 
@@ -693,13 +693,13 @@ Because of that, the shipped defaults are conservative:
 | ------- | --- |
 | `rbac.readOnly: true` | No create/update/patch/delete verbs. Set to `false` only once the Ingress requires a login. |
 | `rbac.allowSecrets: false` | Reading Secrets would expose every Secret in the cluster through an unauthenticated UI. |
-| `KUBEMIND_ALLOW_REMOTE=1` | Set in the manifests, since the Pod must answer on a non-loopback host. It is the reason the two rows above are locked down. |
+| `KUBEAURA_ALLOW_REMOTE=1` | Set in the manifests, since the Pod must answer on a non-loopback host. It is the reason the two rows above are locked down. |
 
 ```bash
-helm install kubemind deploy/helm/kubemind -n kubemind --create-namespace
+helm install kubeaura deploy/helm/kubeaura -n kubeaura --create-namespace
 # or, without Helm:
 kubectl apply -f deploy/kubernetes/install.yaml
-kubectl -n kubemind port-forward svc/kubemind 7654:80
+kubectl -n kubeaura port-forward svc/kubeaura 7654:80
 ```
 
 Port-forwarding (as above) keeps the instance reachable only by you and needs
@@ -723,7 +723,7 @@ no ingress auth at all — a good way to start.
 - Native desktop app (system-webview shell for macOS / Windows / Linux, `-tags desktop`)
 - Namespace quota dashboard (ResourceQuota usage vs hard limits)
 - Ecosystem integrations (detect-don't-install): Trivy Operator CVE view, Kyverno/OPA PolicyReports, Argo CD + Flux GitOps status, KEDA/HPA autoscaling, cert-manager expiry alerts
-- Command-center UI in the KubeMind brand palette (dark/light), SVG icon set, parent-child navigation
+- Command-center UI in the KubeAura brand palette (dark/light), SVG icon set, parent-child navigation
 
 **Planned / not yet built**
 
@@ -742,7 +742,7 @@ See [`docs/internal/architecture.txt`](docs/internal/architecture.txt) for the f
 
 ## Versioning & releases
 
-KubeMind follows [SemVer](https://semver.org). The current version is
+KubeAura follows [SemVer](https://semver.org). The current version is
 **v0.1.0** (pre-1.0: minor versions may include breaking changes) — see
 [CHANGELOG.md](CHANGELOG.md) for what's new in each release.
 
@@ -775,7 +775,7 @@ which is regenerated from the shipped binary (`sh scripts/gen-licenses.sh`) and
 included in every release archive alongside [NOTICE](NOTICE).
 
 **Trademarks.** Kubernetes and the Kubernetes logo are trademarks of The Linux
-Foundation. KubeMind is an independent project, not affiliated with,
+Foundation. KubeAura is an independent project, not affiliated with,
 sponsored by, or endorsed by The Linux Foundation or the CNCF. k9s, Lens, and
 Headlamp are referenced only to describe the category of tool this belongs to;
 all trademarks are the property of their respective owners.

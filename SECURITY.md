@@ -2,28 +2,28 @@
 
 ## Supported Versions
 
-Only the latest release of KubeMind receives security fixes.
+Only the latest release of KubeAura receives security fixes.
 
 ## Reporting a Vulnerability
 
 Please **do not** open a public GitHub issue for security vulnerabilities.
 Instead, report them privately via
-[GitHub Security Advisories](https://github.com/devganeshg/kubemind/security/advisories/new).
+[GitHub Security Advisories](https://github.com/devganeshg/kubeaura/security/advisories/new).
 
 You can expect an initial response within a week. Once a fix is available, the
 vulnerability will be disclosed in the release notes.
 
 ## The threat model
 
-KubeMind is an **operator tool** (like k9s or Lens), not a multi-tenant
+KubeAura is an **operator tool** (like k9s or Lens), not a multi-tenant
 service. It has **no authentication or authorization of its own**: it acts with
 the permissions of the kubeconfig it is given, for the single person running
 it. Everything below follows from that.
 
-### What KubeMind defends against
+### What KubeAura defends against
 
 - **DNS rebinding.** Requests whose `Host` header is not loopback are refused
-  unless you explicitly set `KUBEMIND_ALLOW_REMOTE=1` / `--allow-remote`.
+  unless you explicitly set `KUBEAURA_ALLOW_REMOTE=1` / `--allow-remote`.
   Without this, any website you visit could resolve its own name to
   `127.0.0.1` and drive your local API.
 - **Cross-site requests.** Any request carrying an `Origin` that does not match
@@ -38,7 +38,7 @@ it. Everything below follows from that.
 ### What it does not, and cannot, defend against
 
 - **Anyone with access to your machine or your kubeconfig.** They can do what
-  you can do, with or without KubeMind.
+  you can do, with or without KubeAura.
 - **A shared instance without an authenticating proxy.** In-cluster deployments
   must relax the loopback check to work at all, so **everyone who can reach the
   Service acts as the ServiceAccount**, and the audit trail cannot distinguish
@@ -48,7 +48,7 @@ it. Everything below follows from that.
 - **Repointing the model backend on a shared instance.** Whoever chooses the
   AI connection chooses where cluster snapshots and pod logs are sent. On a
   loopback run that is you, and it is not a boundary. On a shared instance it
-  would be — so when `KUBEMIND_ALLOW_REMOTE` is set, the endpoints that add,
+  would be — so when `KUBEAURA_ALLOW_REMOTE` is set, the endpoints that add,
   activate, remove, or discover model connections refuse writes. Configure the
   backend through the Deployment's environment instead. (The same gate closes
   the SSRF primitive in model discovery, which would otherwise let a viewer make

@@ -14,7 +14,7 @@ import (
 // ollamaProvider talks to a local Ollama server (https://ollama.com) via its
 // native chat API (POST /api/chat). This is the "run everything locally, no data
 // leaves the machine" path: a small model like llama3.2, qwen2.5, or phi3 can
-// answer the Kubernetes queries KubeMind asks.
+// answer the Kubernetes queries KubeAura asks.
 type ollamaProvider struct {
 	host  string // e.g. http://localhost:11434
 	model string

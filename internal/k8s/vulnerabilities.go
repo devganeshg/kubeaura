@@ -13,7 +13,7 @@ import (
 )
 
 // Trivy Operator writes one VulnerabilityReport CR per scanned container.
-// KubeMind never scans anything itself — it just reads these reports when the
+// KubeAura never scans anything itself — it just reads these reports when the
 // operator is installed, following the same detect-don't-install pattern as
 // cert-manager and Flux (see CNCF_INTEGRATION_ROADMAP.md).
 var vulnReportsGVR = schema.GroupVersionResource{

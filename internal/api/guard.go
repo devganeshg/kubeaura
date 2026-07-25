@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// KubeMind has no authentication of its own: it acts with the permissions of
+// KubeAura has no authentication of its own: it acts with the permissions of
 // the kubeconfig it was handed, and it is meant to be reached by exactly one
 // person — the operator running it on their own machine. That model only holds
 // while two browser-level attacks are closed off:
@@ -31,9 +31,9 @@ import (
 func guard(h http.Handler, allowRemote bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !allowRemote && !isLoopbackHost(r.Host) {
-			http.Error(w, "KubeMind only serves loopback hosts. This request arrived with "+
+			http.Error(w, "KubeAura only serves loopback hosts. This request arrived with "+
 				"Host: "+r.Host+", which is how DNS-rebinding attacks reach a local API. "+
-				"Set KUBEMIND_ALLOW_REMOTE=1 (and put an authenticating proxy in front) "+
+				"Set KUBEAURA_ALLOW_REMOTE=1 (and put an authenticating proxy in front) "+
 				"if you meant to expose it.", http.StatusForbidden)
 			return
 		}
@@ -50,7 +50,7 @@ func guard(h http.Handler, allowRemote bool) http.Handler {
 }
 
 // singleOperatorOnly gates endpoints that are safe for the one person running
-// KubeMind on their own machine, but not for a shared in-cluster instance.
+// KubeAura on their own machine, but not for a shared in-cluster instance.
 //
 // Model-connection management is the case that matters. Adding a connection
 // tells the assistant where to send its prompts — and those prompts carry
@@ -67,7 +67,7 @@ func (s *Server) singleOperatorOnly(h http.HandlerFunc) http.HandlerFunc {
 		if s.AllowRemote && r.Method != http.MethodGet {
 			http.Error(w, "changing the AI model connection is disabled on a shared "+
 				"instance: it controls where cluster data is sent. Configure the backend "+
-				"with ANTHROPIC_API_KEY / KUBEMIND_AI_* on the Deployment instead.",
+				"with ANTHROPIC_API_KEY / KUBEAURA_AI_* on the Deployment instead.",
 				http.StatusForbidden)
 			return
 		}

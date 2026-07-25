@@ -21,7 +21,7 @@ type PermissionCheck struct {
 	DeniedReason string `json:"deniedReason,omitempty"`
 }
 
-// ComplianceReport summarizes permission gaps for KubeMind functionality.
+// ComplianceReport summarizes permission gaps for KubeAura functionality.
 type ComplianceReport struct {
 	ServiceAccount   string            `json:"serviceAccount"`
 	Namespace        string            `json:"namespace"`
@@ -33,7 +33,7 @@ type ComplianceReport struct {
 	IsNamespaceAdmin bool              `json:"isNamespaceAdmin"`
 }
 
-// FeatureRequirements defines what permissions each KubeMind feature needs.
+// FeatureRequirements defines what permissions each KubeAura feature needs.
 var FeatureRequirements = map[string][]PermissionCheck{
 	"dashboard": {
 		{APIGroup: "", Resource: "nodes", Verb: "list"},
@@ -110,7 +110,7 @@ func (v *Validator) CheckPermission(ctx context.Context, verb, apiGroup, resourc
 	return false, result.Status.Reason
 }
 
-// GenerateComplianceReport evaluates all KubeMind feature requirements against current permissions.
+// GenerateComplianceReport evaluates all KubeAura feature requirements against current permissions.
 func (v *Validator) GenerateComplianceReport(ctx context.Context, saName, namespace string) (*ComplianceReport, error) {
 	if v.cs == nil {
 		return nil, fmt.Errorf("no cluster client configured")
@@ -175,7 +175,7 @@ func suggestRBACFixes(report *ComplianceReport) []string {
 	return fixes
 }
 
-// SuggestLeastPrivilegeRole creates a Role with only the permissions needed for KubeMind.
+// SuggestLeastPrivilegeRole creates a Role with only the permissions needed for KubeAura.
 func SuggestLeastPrivilegeRole(features []string) *rbacv1.Role {
 	rules := make([]rbacv1.PolicyRule, 0)
 
@@ -206,7 +206,7 @@ func SuggestLeastPrivilegeRole(features []string) *rbacv1.Role {
 
 	return &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kubemind-minimal",
+			Name:      "kubeaura-minimal",
 			Namespace: "default", // user's namespace
 		},
 		Rules: rules,

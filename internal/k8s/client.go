@@ -207,7 +207,7 @@ type Resource struct {
 
 // ListParams controls server-side pagination. Limit caps how many objects the
 // API server returns in one page; Continue is the opaque cursor from a prior
-// page's ListResult.Continue. This is how KubeMind stays responsive on
+// page's ListResult.Continue. This is how KubeAura stays responsive on
 // clusters with 100k+ objects — the operator-tool scaling model.
 type ListParams struct {
 	Limit    int64

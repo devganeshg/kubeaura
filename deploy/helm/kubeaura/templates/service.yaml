@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "kubemind.fullname" . }}
+  name: {{ include "kubeaura.fullname" . }}
   labels:
-    {{- include "kubemind.labels" . | nindent 4 }}
+    {{- include "kubeaura.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   selector:
-    {{- include "kubemind.selectorLabels" . | nindent 4 }}
+    {{- include "kubeaura.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
       port: {{ .Values.service.port }}

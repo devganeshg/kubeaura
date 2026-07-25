@@ -1,4 +1,4 @@
-// Package config resolves KubeMind's runtime settings from three layers, in
+// Package config resolves KubeAura's runtime settings from three layers, in
 // increasing order of precedence: an optional config file, the environment,
 // and command-line flags. Every setting has a working default, so a first run
 // needs no configuration at all.
@@ -11,13 +11,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"sigs.k8s.io/yaml"
 )
 
-// Config holds runtime configuration for KubeMind.
+// Config holds runtime configuration for KubeAura.
 type Config struct {
 	Addr        string // HTTP listen address
 	Kubeconfig  string // path to kubeconfig; empty => in-cluster or default
@@ -34,19 +33,19 @@ type Config struct {
 
 // RAGConfig controls docs retrieval injected into AI answers.
 type RAGConfig struct {
-	DocsEnabled bool   // KUBEMIND_DOCS_RAG_ENABLED (default true)
-	DocsURL     string // KUBEMIND_DOCS_URL (unset = local docs fallback only)
-	DocsPath    string // KUBEMIND_DOCS_PATH fallback path (default "docs")
-	DocsTopK    int    // KUBEMIND_DOCS_TOPK (default 4)
+	DocsEnabled bool   // KUBEAURA_DOCS_RAG_ENABLED (default true)
+	DocsURL     string // KUBEAURA_DOCS_URL (unset = local docs fallback only)
+	DocsPath    string // KUBEAURA_DOCS_PATH fallback path (default "docs")
+	DocsTopK    int    // KUBEAURA_DOCS_TOPK (default 4)
 }
 
-// AIConfig selects and configures the AI Assistant's model backend. KubeMind
+// AIConfig selects and configures the AI Assistant's model backend. KubeAura
 // supports a hosted API (Anthropic), a local model server (Ollama), or any
 // OpenAI-compatible endpoint — so it can run fully offline on the operator's
 // own machine.
 type AIConfig struct {
-	Provider      string // KUBEMIND_AI_PROVIDER: anthropic|ollama|openai (empty = auto-detect)
-	Model         string // KUBEMIND_AI_MODEL: model id override
+	Provider      string // KUBEAURA_AI_PROVIDER: anthropic|ollama|openai (empty = auto-detect)
+	Model         string // KUBEAURA_AI_MODEL: model id override
 	AnthropicKey  string // ANTHROPIC_API_KEY
 	OllamaHost    string // OLLAMA_HOST (default http://localhost:11434 when provider=ollama)
 	OpenAIBaseURL string // OPENAI_BASE_URL (e.g. http://localhost:1234/v1)
@@ -67,7 +66,7 @@ type Flags struct {
 
 // file mirrors Config in the YAML shape users write. Secrets are deliberately
 // absent: API keys come from the environment or from an apiKeyCommand, never
-// from a plaintext file KubeMind manages.
+// from a plaintext file KubeAura manages.
 type file struct {
 	Addr        string `json:"addr,omitempty"`
 	Kubeconfig  string `json:"kubeconfig,omitempty"`
@@ -82,7 +81,7 @@ type file struct {
 		OpenAIBaseURL string `json:"openaiBaseURL,omitempty"`
 		// APIKeyCommand is run to obtain the key, so it can live in a
 		// keychain or password manager instead of on disk. Example:
-		//   apiKeyCommand: security find-generic-password -w -s kubemind
+		//   apiKeyCommand: security find-generic-password -w -s kubeaura
 		APIKeyCommand string `json:"apiKeyCommand,omitempty"`
 	} `json:"ai,omitempty"`
 
@@ -94,7 +93,7 @@ type file struct {
 	} `json:"docs,omitempty"`
 }
 
-// DefaultAddr binds loopback only. KubeMind has no authentication of its own
+// DefaultAddr binds loopback only. KubeAura has no authentication of its own
 // and exposes mutating endpoints (apply, delete, exec), so reaching the wider
 // network has to be a deliberate act — see AllowRemote.
 //
@@ -157,9 +156,9 @@ func Load(f Flags) (Config, error) {
 	return cfg, nil
 }
 
-// Path returns the config file location KubeMind reads, whether or not it
-// exists: $KUBEMIND_CONFIG, else $XDG_CONFIG_HOME/kubemind/config.yaml, else
-// ~/.config/kubemind/config.yaml.
+// Path returns the config file location KubeAura reads, whether or not it
+// exists: $KUBEAURA_CONFIG, else $XDG_CONFIG_HOME/kubeaura/config.yaml, else
+// ~/.config/kubeaura/config.yaml.
 func Path() string {
 	if p := env("CONFIG"); p != "" {
 		return p
@@ -172,7 +171,7 @@ func Path() string {
 		}
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "kubemind", "config.yaml")
+	return filepath.Join(base, "kubeaura", "config.yaml")
 }
 
 func loadFile() (file, string, error) {
@@ -213,24 +212,8 @@ func runKeyCommand(cmdline string) (string, error) {
 	return key, nil
 }
 
-// env reads a KUBEMIND_-prefixed variable, falling back to the KUBEPILOT_
-// name the project used before it was renamed. The fallback is a courtesy for
-// existing shell profiles and scripts; drop it at 1.0.
-func env(suffix string) string {
-	if v := os.Getenv("KUBEMIND_" + suffix); v != "" {
-		return v
-	}
-	if v := os.Getenv("KUBEPILOT_" + suffix); v != "" {
-		deprecatedOnce.Do(func() {
-			fmt.Fprintf(os.Stderr,
-				"note: KUBEPILOT_* environment variables are deprecated; rename them to KUBEMIND_*\n")
-		})
-		return v
-	}
-	return ""
-}
-
-var deprecatedOnce sync.Once
+// env reads a KUBEAURA_-prefixed variable.
+func env(suffix string) string { return os.Getenv("KUBEAURA_" + suffix) }
 
 // pick returns the first non-empty value in precedence order.
 func pick(vals ...string) string {
@@ -268,14 +251,14 @@ func truthy(s string) bool {
 	return s != "" && s != "0" && !strings.EqualFold(s, "false")
 }
 
-// Example is the annotated starter config written by `kubemind config init`.
+// Example is the annotated starter config written by `kubeaura config init`.
 func Example() string {
-	return fmt.Sprintf(`# KubeMind configuration — every key is optional.
-# Generated %s. Docs: https://github.com/devganeshg/kubemind#configuration
+	return fmt.Sprintf(`# KubeAura configuration — every key is optional.
+# Generated %s. Docs: https://github.com/devganeshg/kubeaura#configuration
 #
 # Precedence: command-line flags > environment variables > this file.
 
-# Listen address. Loopback by default: KubeMind has no authentication and can
+# Listen address. Loopback by default: KubeAura has no authentication and can
 # apply, delete, and exec, so only widen this behind an authenticating proxy.
 addr: %s
 
@@ -298,12 +281,12 @@ ai:
   # openaiBaseURL: http://localhost:1234/v1
 
   # API keys are never stored in this file. Set ANTHROPIC_API_KEY /
-  # OPENAI_API_KEY in your environment, or have KubeMind fetch the key from
+  # OPENAI_API_KEY in your environment, or have KubeAura fetch the key from
   # your keychain at startup — useful for the desktop app, which inherits no
   # shell environment when launched from Finder or Explorer:
   #
-  #   macOS:     apiKeyCommand: security find-generic-password -w -s kubemind
-  #   Linux:     apiKeyCommand: secret-tool lookup service kubemind
+  #   macOS:     apiKeyCommand: security find-generic-password -w -s kubeaura
+  #   Linux:     apiKeyCommand: secret-tool lookup service kubeaura
   #   1Password: apiKeyCommand: op read "op://Private/Anthropic/credential"
 
 # Ground AI answers in your own MkDocs site (optional).

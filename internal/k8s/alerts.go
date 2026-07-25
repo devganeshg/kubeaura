@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-// Alert is one derived cluster problem. KubeMind has no external alerting
+// Alert is one derived cluster problem. KubeAura has no external alerting
 // backend (Prometheus/Alertmanager); instead it evaluates rules over live
 // cluster state on demand — the operator-tool model. Severity is one of
 // "critical", "warning", "info".

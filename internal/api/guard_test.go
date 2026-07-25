@@ -31,9 +31,9 @@ func TestGuard(t *testing.T) {
 		{"cross-origin port", "localhost:8080", "http://localhost:9999", false, http.StatusForbidden},
 
 		// Shared deployments opt in, but cross-origin stays refused.
-		{"remote allowed", "kubemind.internal", "", true, http.StatusOK},
-		{"remote same-origin", "kubemind.internal", "https://kubemind.internal", true, http.StatusOK},
-		{"remote cross-origin", "kubemind.internal", "https://evil.example.com", true, http.StatusForbidden},
+		{"remote allowed", "kubeaura.internal", "", true, http.StatusOK},
+		{"remote same-origin", "kubeaura.internal", "https://kubeaura.internal", true, http.StatusOK},
+		{"remote cross-origin", "kubeaura.internal", "https://evil.example.com", true, http.StatusForbidden},
 	}
 
 	for _, tc := range tests {

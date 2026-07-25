@@ -1,0 +1,16 @@
+apiVersion: v2
+name: kubeaura
+description: KubeAura — an AI-assisted, operator-class Kubernetes UI (single binary)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - dashboard
+  - ai
+  - operations
+home: https://github.com/devganeshg/kubeaura
+sources:
+  - https://github.com/devganeshg/kubeaura
+maintainers:
+  - name: devganeshg

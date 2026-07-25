@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/devganeshg/kubemind/internal/k8s"
-	"github.com/devganeshg/kubemind/internal/rbac"
+	"github.com/devganeshg/kubeaura/internal/k8s"
+	"github.com/devganeshg/kubeaura/internal/rbac"
 )
 
 // MockManager implements k8s.Manager interface for testing

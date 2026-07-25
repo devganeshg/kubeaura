@@ -34,7 +34,7 @@ type VulnerableDependency struct {
 
 // ImageScan represents the result of scanning a container image.
 type ImageScan struct {
-	ImageName       string                 `json:"imageName"` // "k8s/kubemind:v1.2.3"
+	ImageName       string                 `json:"imageName"` // "k8s/kubeaura:v1.2.3"
 	Digest          string                 `json:"digest"`
 	ScannedAt       time.Time              `json:"scannedAt"`
 	ScannerVersion  string                 `json:"scannerVersion"` // "trivy v0.45.0"

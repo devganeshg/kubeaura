@@ -49,7 +49,7 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      # KubeMind links client-go and a dozen Kubernetes libraries directly into
+      # KubeAura links client-go and a dozen Kubernetes libraries directly into
       # the binary, so a dependency CVE is our CVE. govulncheck reports only
       # what our code actually reaches, so a failure here is always actionable.
       - name: govulncheck

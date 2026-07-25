@@ -1,6 +1,6 @@
 # Binaries
-/kubemind
-/kubemind-*
+/kubeaura
+/kubeaura-*
 *.exe
 dist/
 bin/

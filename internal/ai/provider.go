@@ -1,7 +1,7 @@
-// Package ai implements the KubeMind Assistant: natural-language cluster
+// Package ai implements the KubeAura Assistant: natural-language cluster
 // querying, troubleshooting, and manifest generation.
 //
-// The Assistant is model-agnostic. It talks to a pluggable Provider so KubeMind
+// The Assistant is model-agnostic. It talks to a pluggable Provider so KubeAura
 // can be driven by a hosted API (Anthropic Claude), a local model server
 // (Ollama), or any OpenAI-compatible endpoint (LocalAI, LM Studio, vLLM,
 // llama.cpp, OpenRouter, Groq, …). This keeps the operator-tool promise: you can

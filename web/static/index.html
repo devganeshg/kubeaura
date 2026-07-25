@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KubeMind</title>
+    <title>KubeAura</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff4000'/%3E%3Cstop offset='1' stop-color='%23ff0072'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M32 3 57.1 17.5v29L32 61 6.9 46.5v-29Z' fill='none' stroke='url(%23g)' stroke-width='4' stroke-linejoin='round'/%3E%3Cg stroke='url(%23g)' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M32 33 32 19'/%3E%3Cpath d='M32 33 20.5 40.5'/%3E%3Cpath d='M32 33 43.5 40.5'/%3E%3C/g%3E%3Ccircle cx='32' cy='33' r='5.8' fill='url(%23g)'/%3E%3Ccircle cx='32' cy='17.8' r='3.5' fill='url(%23g)'/%3E%3Ccircle cx='19.4' cy='41.4' r='3.5' fill='url(%23g)'/%3E%3Ccircle cx='44.6' cy='41.4' r='3.5' fill='url(%23g)'/%3E%3C/svg%3E"
     />
     <style>
-      /* Dark (default) — Pilot Command Center in KubeMind brand colors:
+      /* Dark (default) — Pilot Command Center in KubeAura brand colors:
          ember-orange → magenta holo-glow (logo gradient #ff4000 → #ff0072)
          on a deep warm charcoal. */
       :root {
@@ -3701,7 +3701,7 @@
             </svg>
           </div>
           <div class="sl-name">
-            <div class="sl-title">KUBEMIND</div>
+            <div class="sl-title">KUBEAURA</div>
             <div class="sl-sub">AI Command Center <span id="ver" class="mono"></span></div>
           </div>
         </div>
@@ -3712,7 +3712,7 @@
             <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
           </div>
           <div class="vd-status" id="vd-status">Standby</div>
-          <button class="vd-mic" onclick="talkToPilot()" title="Talk to KubeMind">
+          <button class="vd-mic" onclick="talkToPilot()" title="Talk to KubeAura">
             <span class="vd-mic-ring"></span>
             <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
           </button>
@@ -3772,7 +3772,7 @@
         <div class="dk-ticks" aria-hidden="true"></div>
         <button class="dk-talk" onclick="talkToPilot()">
           <span class="dk-talk-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-          <span class="dk-talk-txt"><b>TALK TO KUBEMIND</b><span id="dk-talk-sub">Tap to speak…</span></span>
+          <span class="dk-talk-txt"><b>TALK TO KUBEAURA</b><span id="dk-talk-sub">Tap to speak…</span></span>
           <span class="dk-talk-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
         </button>
         <div class="dk-ticks" aria-hidden="true"></div>
@@ -4504,7 +4504,7 @@
             <circle cx="150" cy="150" r="64" fill="none" stroke="rgba(var(--accent-rgb),.09)"/>
           </svg>
           <div class="cc-core-txt">
-            <div class="t1">KUBEMIND</div>
+            <div class="t1">KUBEAURA</div>
             <div class="t2">AI Command Core</div>
             <div class="t3">⎈ ${esc(s.context)} · ns ${esc(state.ns || "all")}</div>
             <div class="score" style="color:${scol}">◉ ${score}% · ${sword}</div>
@@ -4922,9 +4922,9 @@
         <div id="jz-chat-status" class="jz-chat-status"></div>
         <div id="jz-answer" class="jz-answer" hidden></div>
         <div class="jz-chat-row">
-          <input id="jz-q" placeholder="Ask KubeMind about your cluster… (Enter to send)"
+          <input id="jz-q" placeholder="Ask KubeAura about your cluster… (Enter to send)"
             onkeydown="if(event.key==='Enter')jzAsk()" autocomplete="off">
-          <button id="jz-mic" class="jz-mic" onclick="jzMic()" title="speak to KubeMind">🎙</button>
+          <button id="jz-mic" class="jz-mic" onclick="jzMic()" title="speak to KubeAura">🎙</button>
           <button id="jz-mute" class="jz-mic" onclick="jzToggleVoice()" title="voice on/off">${jzVoiceOn ? "🔊" : "🔇"}</button>
           <button class="jz-mic" onclick="jzAsk()" title="ask">➤</button>
         </div>
@@ -5542,7 +5542,7 @@
         if (!jzVoiceOn) jzStopVoice();
         const b = $("#jz-mute");
         if (b) b.textContent = jzVoiceOn ? "🔊" : "🔇";
-        toast(jzVoiceOn ? "KubeMind voice on" : "KubeMind voice off");
+        toast(jzVoiceOn ? "KubeAura voice on" : "KubeAura voice off");
       }
 
       // -- voice in --
@@ -6087,7 +6087,7 @@
       }
       async function renderSecurity() {
         $("#main").innerHTML = `<h2>Security <span class="pill">${esc(state.ns || "all namespaces")}</span></h2>
-    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">Image vulnerability reports read from the Trivy Operator (KubeMind never scans anything itself).</div>
+    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">Image vulnerability reports read from the Trivy Operator (KubeAura never scans anything itself).</div>
     <div id="sec-body"><div class="empty"><span class="spin"></span></div></div>`;
         try {
           const v = await api(
@@ -6097,7 +6097,7 @@
             $("#sec-body").innerHTML = `<div class="empty">🛡️ Trivy Operator not detected in this cluster.<br>
           <span style="font-size:12px;color:var(--muted)">Install it to get continuous image scanning:<br>
           <code>helm install trivy-operator oci://ghcr.io/aquasecurity/helm-charts/trivy-operator -n trivy-system --create-namespace</code><br>
-          KubeMind will pick up its VulnerabilityReports automatically — no config needed.</span></div>`;
+          KubeAura will pick up its VulnerabilityReports automatically — no config needed.</span></div>`;
             return;
           }
           const reports = v.reports || [];
@@ -6193,7 +6193,7 @@
             $("#policy-body").innerHTML = `<div class="empty">✅ No policy engine detected in this cluster.<br>
           <span style="font-size:12px;color:var(--muted)">Install Kyverno to get admission policies with reports:<br>
           <code>helm install kyverno kyverno/kyverno -n kyverno --create-namespace</code><br>
-          KubeMind reads the standard <code>wgpolicyk8s.io</code> PolicyReports from any engine.</span></div>`;
+          KubeAura reads the standard <code>wgpolicyk8s.io</code> PolicyReports from any engine.</span></div>`;
             return;
           }
           const reports = p.reports || [];
@@ -6364,7 +6364,7 @@
           const g = await api(`/api/gitops?namespace=${state.ns}`);
           if (!g.argoInstalled && !g.fluxInstalled) {
             $("#gitops-body").innerHTML = `<div class="empty">🔁 No GitOps engine detected in this cluster.<br>
-          <span style="font-size:12px;color:var(--muted)">KubeMind lights this view up automatically when Argo CD (<code>applications.argoproj.io</code>) or Flux (<code>kustomizations / helmreleases toolkit CRDs</code>) are installed.</span></div>`;
+          <span style="font-size:12px;color:var(--muted)">KubeAura lights this view up automatically when Argo CD (<code>applications.argoproj.io</code>) or Flux (<code>kustomizations / helmreleases toolkit CRDs</code>) are installed.</span></div>`;
             return;
           }
           const apps = g.apps || [];
@@ -6458,7 +6458,7 @@
       async function renderAudit() {
         $("#main").innerHTML =
           `<h2>Audit Trail <span class="pill">write actions this session</span></h2>
-    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:10px">Every change made through KubeMind — kept in memory, newest first.</div>
+    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:10px">Every change made through KubeAura — kept in memory, newest first.</div>
     <div id="audit-body"><div class="empty"><span class="spin"></span></div></div>`;
         try {
           const j = await api("/api/audit");
@@ -7840,7 +7840,7 @@
       async function drawerDiagnose() {
         if (!state.aiEnabled) {
           toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEMIND_AI_PROVIDER=ollama)",
+            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
           );
           return;
         }
@@ -7928,7 +7928,7 @@
             `<div class="empty" style="font-size:12px">Ask about your cluster in plain English.</div>`;
           body.scrollTop = body.scrollHeight;
           foot.innerHTML = `<textarea id="ai-in" rows="2" placeholder="Ask about your cluster…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ask()}"></textarea>
-      <button class="btn" style="width:100%;margin-top:8px" onclick="ask()">Ask KubeMind</button>`;
+      <button class="btn" style="width:100%;margin-top:8px" onclick="ask()">Ask KubeAura</button>`;
         } else {
           const genChips = [
             "nginx deployment with 3 replicas and a ClusterIP service on port 80",
@@ -7937,7 +7937,7 @@
             "Redis StatefulSet with a 1Gi PVC and headless service",
           ];
           body.innerHTML =
-            `<div class="empty" style="font-size:12px" id="gen-out">Describe a workload and KubeMind will generate apply-ready YAML.</div>` +
+            `<div class="empty" style="font-size:12px" id="gen-out">Describe a workload and KubeAura will generate apply-ready YAML.</div>` +
             `<div class="suggest">` +
             genChips
               .map(
@@ -7989,7 +7989,7 @@
         if (!q) return;
         if (!state.aiEnabled) {
           toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEMIND_AI_PROVIDER=ollama)",
+            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
           );
           return;
         }
@@ -8103,7 +8103,7 @@
         if (!desc) return;
         if (!state.aiEnabled) {
           toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEMIND_AI_PROVIDER=ollama)",
+            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
           );
           return;
         }
@@ -8126,7 +8126,7 @@
       async function aiTroubleshoot(ns, name) {
         if (!state.aiEnabled) {
           toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEMIND_AI_PROVIDER=ollama)",
+            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
           );
           return;
         }
@@ -8476,7 +8476,7 @@
         });
         cmds.push({
           ic: "🛰️",
-          label: "Talk to KubeMind",
+          label: "Talk to KubeAura",
           sub: "action",
           run: () => talkToPilot(),
         });

@@ -29,7 +29,7 @@ func TestPrecedence(t *testing.T) {
 	if err := os.WriteFile(path, []byte("addr: 1.1.1.1:1\nai:\n  provider: ollama\n  model: from-file\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("KUBEMIND_CONFIG", path)
+	t.Setenv("KUBEAURA_CONFIG", path)
 
 	// File only.
 	cfg, err := Load(Flags{})
@@ -44,8 +44,8 @@ func TestPrecedence(t *testing.T) {
 	}
 
 	// Env beats file.
-	t.Setenv("KUBEMIND_ADDR", "2.2.2.2:2")
-	t.Setenv("KUBEMIND_AI_MODEL", "from-env")
+	t.Setenv("KUBEAURA_ADDR", "2.2.2.2:2")
+	t.Setenv("KUBEAURA_AI_MODEL", "from-env")
 	if cfg, err = Load(Flags{}); err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestAPIKeyCommand(t *testing.T) {
 	if err := os.WriteFile(path, []byte("ai:\n  provider: anthropic\n  apiKeyCommand: printf sk-from-keychain\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("KUBEMIND_CONFIG", path)
+	t.Setenv("KUBEAURA_CONFIG", path)
 
 	cfg, err := Load(Flags{})
 	if err != nil {
@@ -88,36 +88,13 @@ func TestAPIKeyCommand(t *testing.T) {
 	}
 }
 
-func TestDeprecatedEnvPrefix(t *testing.T) {
-	withCleanEnv(t)
-
-	// The pre-rename prefix still works, so existing shell profiles don't break.
-	t.Setenv("KUBEPILOT_ADDR", "127.0.0.1:1234")
-	cfg, err := Load(Flags{})
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.Addr != "127.0.0.1:1234" {
-		t.Errorf("Addr = %q, want the KUBEPILOT_ fallback to apply", cfg.Addr)
-	}
-
-	// The current prefix wins when both are set.
-	t.Setenv("KUBEMIND_ADDR", "127.0.0.1:5678")
-	if cfg, err = Load(Flags{}); err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Addr != "127.0.0.1:5678" {
-		t.Errorf("Addr = %q, want KUBEMIND_ to take precedence", cfg.Addr)
-	}
-}
-
 func TestExampleParses(t *testing.T) {
 	dir := withCleanEnv(t)
 	path := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(path, []byte(Example()), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("KUBEMIND_CONFIG", path)
+	t.Setenv("KUBEAURA_CONFIG", path)
 	if _, err := Load(Flags{}); err != nil {
 		t.Fatalf("the generated starter config does not load: %v", err)
 	}
@@ -134,8 +111,7 @@ func withCleanEnv(t *testing.T) string {
 	}
 	var keys []string
 	for _, s := range suffixes {
-		// Both prefixes: the deprecated one still feeds Load.
-		keys = append(keys, "KUBEMIND_"+s, "KUBEPILOT_"+s)
+		keys = append(keys, "KUBEAURA_"+s)
 	}
 	keys = append(keys,
 		"ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", "OPENAI_API_KEY", "OPENAI_BASE_URL",
@@ -146,6 +122,6 @@ func withCleanEnv(t *testing.T) string {
 		os.Unsetenv(k)
 	}
 	dir := t.TempDir()
-	t.Setenv("KUBEMIND_CONFIG", filepath.Join(dir, "does-not-exist.yaml"))
+	t.Setenv("KUBEAURA_CONFIG", filepath.Join(dir, "does-not-exist.yaml"))
 	return dir
 }

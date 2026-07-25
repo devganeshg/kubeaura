@@ -1,9 +1,9 @@
-{{- define "kubemind.name" -}}
+{{- define "kubeaura.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "kubemind.fullname" -}}
-{{- $name := include "kubemind.name" . -}}
+{{- define "kubeaura.fullname" -}}
+{{- $name := include "kubeaura.name" . -}}
 {{- if contains $name .Release.Name -}}
 {{- .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -11,27 +11,27 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "kubemind.labels" -}}
-app.kubernetes.io/name: {{ include "kubemind.name" . }}
+{{- define "kubeaura.labels" -}}
+app.kubernetes.io/name: {{ include "kubeaura.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
 {{- end -}}
 
-{{- define "kubemind.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "kubemind.name" . }}
+{{- define "kubeaura.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubeaura.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
-{{- define "kubemind.serviceAccountName" -}}
-{{ include "kubemind.fullname" . }}
+{{- define "kubeaura.serviceAccountName" -}}
+{{ include "kubeaura.fullname" . }}
 {{- end -}}
 
-{{- define "kubemind.secretName" -}}
+{{- define "kubeaura.secretName" -}}
 {{- if .Values.ai.existingSecret -}}
 {{ .Values.ai.existingSecret }}
 {{- else -}}
-{{ include "kubemind.fullname" . }}
+{{ include "kubeaura.fullname" . }}
 {{- end -}}
 {{- end -}}

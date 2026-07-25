@@ -1,6 +1,6 @@
-# Contributing to KubeMind
+# Contributing to KubeAura
 
-Thanks for your interest! KubeMind is an open-source, operator-class
+Thanks for your interest! KubeAura is an open-source, operator-class
 Kubernetes UI (in the spirit of k9s / Lens / Headlamp) with a built-in AI Assistant.
 
 ## Ground rules
@@ -9,7 +9,7 @@ Kubernetes UI (in the spirit of k9s / Lens / Headlamp) with a built-in AI Assist
   single-binary, per-operator, stateless model (see
   `docs/internal/architecture.txt` → ARCHITECTURE MODEL). No shared caches,
   message buses, or HA tiers.
-- **Loopback and no-auth are load-bearing.** KubeMind authenticates nobody, so
+- **Loopback and no-auth are load-bearing.** KubeAura authenticates nobody, so
   the defaults in `internal/api/guard.go` and `config.DefaultAddr` are what keep
   it safe. Do not widen them without saying why in the PR.
 - **Never persist secrets.** The tool acts only with the operator's own
@@ -21,11 +21,11 @@ Kubernetes UI (in the spirit of k9s / Lens / Headlamp) with a built-in AI Assist
 
 ```bash
 # Prereqs: the Go version in go.mod, and a reachable cluster (kind works great)
-make build && ./bin/kubemind    # http://127.0.0.1:8080
+make build && ./bin/kubeaura    # http://127.0.0.1:8080
 
 # Enable the AI Assistant — a hosted key, or nothing at all with Ollama
 export ANTHROPIC_API_KEY=sk-ant-...
-KUBEMIND_AI_PROVIDER=ollama ./bin/kubemind
+KUBEAURA_AI_PROVIDER=ollama ./bin/kubeaura
 ```
 
 The web UI is embedded with `go:embed`, so edits to `web/static/index.html`
@@ -35,7 +35,7 @@ require a rebuild to show up.
 
 | Package | Responsibility |
 |---------|----------------|
-| `cmd/kubemind`  | entrypoint |
+| `cmd/kubeaura`  | entrypoint |
 | `internal/config`| flags + env + config-file resolution |
 | `internal/k8s`   | client-go: list/summary/logs/scale/restart/delete/apply |
 | `internal/ai`    | AI assistant + pluggable model providers |

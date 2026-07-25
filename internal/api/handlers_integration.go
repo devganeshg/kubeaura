@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/devganeshg/kubemind/internal/rbac"
+	"github.com/devganeshg/kubeaura/internal/rbac"
 )
 
 // --- CI/CD Handlers ---

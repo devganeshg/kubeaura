@@ -1,9 +1,9 @@
 ###################################################
-KubeMind — Product & Architecture Requirements
+KubeAura — Product & Architecture Requirements
 ###################################################
 
 Project Name:
-  KubeMind
+  KubeAura
 
 Project Goal:
   An easy-to-use, extensible, modern Kubernetes UI that helps Platform Engineers,
@@ -18,7 +18,7 @@ License:
 ARCHITECTURE MODEL (decided)
 ###################################################
 
-KubeMind is an OPERATOR TOOL, in the same class as k9s, Lens, and Headlamp —
+KubeAura is an OPERATOR TOOL, in the same class as k9s, Lens, and Headlamp —
 NOT a centralized multi-tenant SaaS control plane like Rancher.
 
 Implications of this decision:
@@ -27,8 +27,8 @@ Implications of this decision:
     self-contained binary locally, or a per-user pod in-cluster. There is no
     shared, always-on aggregation backend that all users route through.
 
-  - Where state lives: KubeMind does NOT store cluster state. The Kubernetes
-    API server + etcd hold the state (pods, deployments, etc.). KubeMind reads
+  - Where state lives: KubeAura does NOT store cluster state. The Kubernetes
+    API server + etcd hold the state (pods, deployments, etc.). KubeAura reads
     it on demand and via watches. Scale to 100k+ objects comes from using the
     API server correctly, not from a caching tier of our own.
 

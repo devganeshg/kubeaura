@@ -6,7 +6,7 @@ body:
     id: workflow
     attributes:
       label: What operator workflow are you trying to improve?
-      description: Describe the task you're doing today and where KubeMind gets in the way.
+      description: Describe the task you're doing today and where KubeAura gets in the way.
     validations:
       required: true
   - type: textarea

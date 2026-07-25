@@ -1,7 +1,7 @@
-# Default values for KubeMind.
+# Default values for KubeAura.
 
 image:
-  repository: ghcr.io/devganeshg/kubemind
+  repository: ghcr.io/devganeshg/kubeaura
   tag: ""            # defaults to .Chart.AppVersion
   pullPolicy: IfNotPresent
 
@@ -10,7 +10,7 @@ replicaCount: 1
 # AI Assistant (Claude). Provide the key one of two ways:
 #   ai.apiKey            -> chart creates a Secret with this value
 #   ai.existingSecret    -> reference a Secret you manage (key: ANTHROPIC_API_KEY)
-# Leave both empty to run KubeMind without the AI Assistant.
+# Leave both empty to run KubeAura without the AI Assistant.
 ai:
   apiKey: ""
   existingSecret: ""
@@ -40,7 +40,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: kubemind.local
+    - host: kubeaura.local
       paths:
         - path: /
           pathType: Prefix

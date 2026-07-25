@@ -13,7 +13,7 @@ import webview "github.com/webview/webview_go"
 func runDesktop(url string) bool {
 	w := webview.New(false)
 	defer w.Destroy()
-	w.SetTitle("KubeMind")
+	w.SetTitle("KubeAura")
 	w.SetSize(1440, 900, webview.HintNone)
 	w.Navigate(url)
 	w.Run()

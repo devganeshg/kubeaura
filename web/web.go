@@ -1,4 +1,4 @@
-// Package web embeds the KubeMind single-page UI so the whole platform
+// Package web embeds the KubeAura single-page UI so the whole platform
 // ships as one self-contained binary.
 package web
 

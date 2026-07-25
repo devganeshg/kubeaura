@@ -1,10 +1,10 @@
-// Command kubemind is the KubeMind server: a single binary that reads your
+// Command kubeaura is the KubeAura server: a single binary that reads your
 // existing kubeconfig and serves an AI-assisted web UI for your clusters.
 //
 // Quick start:
 //
-//	kubemind            # uses your current kube context, opens the browser
-//	kubemind --help     # every flag and environment variable
+//	kubeaura            # uses your current kube context, opens the browser
+//	kubeaura --help     # every flag and environment variable
 package main
 
 import (
@@ -21,23 +21,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devganeshg/kubemind/internal/ai"
-	"github.com/devganeshg/kubemind/internal/api"
-	"github.com/devganeshg/kubemind/internal/config"
-	"github.com/devganeshg/kubemind/internal/k8s"
-	"github.com/devganeshg/kubemind/internal/rag"
-	"github.com/devganeshg/kubemind/web"
+	"github.com/devganeshg/kubeaura/internal/ai"
+	"github.com/devganeshg/kubeaura/internal/api"
+	"github.com/devganeshg/kubeaura/internal/config"
+	"github.com/devganeshg/kubeaura/internal/k8s"
+	"github.com/devganeshg/kubeaura/internal/rag"
+	"github.com/devganeshg/kubeaura/web"
 )
 
 // version is set at build time via -ldflags "-X main.version=...".
 var version = "dev"
 
 func main() {
-	// KUBEMIND_DESKTOP=1 is the env form of --desktop, so app bundles (macOS
+	// KUBEAURA_DESKTOP=1 is the env form of --desktop, so app bundles (macOS
 	// .app, .desktop launchers) can enable it without passing arguments.
-	desktopEnv := os.Getenv("KUBEMIND_DESKTOP") == "1"
+	desktopEnv := os.Getenv("KUBEAURA_DESKTOP") == "1"
 
-	fs := flag.NewFlagSet("kubemind", flag.ExitOnError)
+	fs := flag.NewFlagSet("kubeaura", flag.ExitOnError)
 	fs.Usage = func() { usage(fs) }
 	var (
 		f           config.Flags
@@ -52,7 +52,7 @@ func main() {
 	fs.BoolVar(&f.NoBrowser, "no-browser", false, "do not open a browser on start")
 	fs.BoolVar(&f.AllowRemote, "allow-remote", false, "serve non-loopback hosts (requires your own auth in front)")
 
-	// `kubemind config init` writes a starter config file; it must run before
+	// `kubeaura config init` writes a starter config file; it must run before
 	// flag parsing so the subcommand word is not read as a flag.
 	if len(os.Args) > 1 && os.Args[1] == "config" {
 		runConfigCmd(os.Args[2:])
@@ -61,7 +61,7 @@ func main() {
 	_ = fs.Parse(os.Args[1:])
 
 	if *showVersion {
-		fmt.Printf("kubemind %s (%s/%s, %s)\n", version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		fmt.Printf("kubeaura %s (%s/%s, %s)\n", version, runtime.GOOS, runtime.GOARCH, runtime.Version())
 		return
 	}
 	desktop := desktopEnv || *desktopFlag
@@ -74,9 +74,9 @@ func main() {
 	mgr, err := k8s.NewManager(cfg.Kubeconfig)
 	if err != nil {
 		log.Fatalf("could not read your kubeconfig / connect to a cluster: %v\n\n"+
-			"KubeMind uses your existing kube context, the same one kubectl uses.\n"+
+			"KubeAura uses your existing kube context, the same one kubectl uses.\n"+
 			"  • check it resolves:  kubectl config current-context\n"+
-			"  • point at another:   kubemind --kubeconfig /path/to/config\n"+
+			"  • point at another:   kubeaura --kubeconfig /path/to/config\n"+
 			"  • no cluster yet?     kind create cluster   (or minikube start)", err)
 	}
 	if cfg.Context != "" {
@@ -135,7 +135,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not listen on %s: %v\n"+
 			"Something else is using that port. Pick another with --addr, e.g.\n"+
-			"  kubemind --addr 127.0.0.1:7655", cfg.Addr, err)
+			"  kubeaura --addr 127.0.0.1:7655", cfg.Addr, err)
 	}
 	url := "http://localhost" + normalizeAddr(ln.Addr().String())
 
@@ -147,11 +147,11 @@ func main() {
 		// so binding all interfaces is correct and "bind 127.0.0.1 instead"
 		// would be actively wrong advice.
 		msg := "  ⚠  Listening on %s — beyond this machine.\n" +
-			"     KubeMind has no login of its own and can apply/delete/exec with your\n" +
+			"     KubeAura has no login of its own and can apply/delete/exec with your\n" +
 			"     credentials. Put authentication in front of it, or bind %s.\n\n"
 		if !cfg.AllowRemote {
 			msg += "     Non-loopback requests are currently REFUSED. Pass --allow-remote\n" +
-				"     (or KUBEMIND_ALLOW_REMOTE=1) once a proxy is in place.\n\n"
+				"     (or KUBEAURA_ALLOW_REMOTE=1) once a proxy is in place.\n\n"
 		}
 		fmt.Printf(msg, ln.Addr().String(), config.DefaultAddr)
 	}
@@ -163,7 +163,7 @@ func main() {
 	//   1. Chrome/Edge app mode — chromeless window WITH working voice input
 	//      (the Web Speech API only exists in Chromium browsers).
 	//   2. The native system webview (build tag `desktop`; voice output only).
-	// Set KUBEMIND_WEBVIEW=1 to skip Chrome and force the native webview.
+	// Set KUBEAURA_WEBVIEW=1 to skip Chrome and force the native webview.
 	// Closing the window exits the app either way.
 	if desktop {
 		go func() {
@@ -191,7 +191,7 @@ func main() {
 
 // banner prints a short, friendly startup summary.
 func banner(url string, mgr *k8s.Manager, assistant *ai.Assistant, cfg config.Config) {
-	aiLine := "off — run `kubemind config init` for setup, or add a model in the UI (✨ → ⚙)"
+	aiLine := "off — run `kubeaura config init` for setup, or add a model in the UI (✨ → ⚙)"
 	if assistant.Enabled() {
 		aiLine = fmt.Sprintf("on — %s (%s)", assistant.ProviderName(), assistant.ModelName())
 	}
@@ -200,7 +200,7 @@ func banner(url string, mgr *k8s.Manager, assistant *ai.Assistant, cfg config.Co
 		src = cfg.Source
 	}
 	fmt.Printf(`
-  KubeMind %s
+  KubeAura %s
   ────────────────────────────────────────────────
   Cluster    %s  (%d context(s) in your kubeconfig)
   Assistant  %s
@@ -215,15 +215,15 @@ func banner(url string, mgr *k8s.Manager, assistant *ai.Assistant, cfg config.Co
 // usage prints help in the shape people expect from a CLI: what it does, how
 // to run it, then flags and the environment variables that mirror them.
 func usage(fs *flag.FlagSet) {
-	fmt.Fprintf(os.Stderr, `KubeMind %s — an AI-assisted Kubernetes cockpit you run yourself.
+	fmt.Fprintf(os.Stderr, `KubeAura %s — an AI-assisted Kubernetes cockpit you run yourself.
 
 Reads your existing kubeconfig and serves a web UI on %s. It can do
 exactly what your credentials can do with kubectl, and nothing more.
 
 USAGE
-  kubemind [flags]
-  kubemind config init     write a starter config file
-  kubemind config path     print where the config file is read from
+  kubeaura [flags]
+  kubeaura config init     write a starter config file
+  kubeaura config path     print where the config file is read from
 
 FLAGS
 `, version, config.DefaultAddr)
@@ -231,14 +231,14 @@ FLAGS
 	fmt.Fprintf(os.Stderr, `
 ENVIRONMENT
   KUBECONFIG              path to kubeconfig
-  KUBEMIND_CONFIG        config file path (default %s)
-  KUBEMIND_ADDR          listen address
-  KUBEMIND_CONTEXT       kube context to start on
-  KUBEMIND_ALLOW_REMOTE  set to 1 to serve non-loopback hosts
-  KUBEMIND_NO_BROWSER    set to 1 to skip opening a browser
-  KUBEMIND_DESKTOP       set to 1 for the desktop window
-  KUBEMIND_AI_PROVIDER   anthropic | ollama | openai
-  KUBEMIND_AI_MODEL      model id override
+  KUBEAURA_CONFIG        config file path (default %s)
+  KUBEAURA_ADDR          listen address
+  KUBEAURA_CONTEXT       kube context to start on
+  KUBEAURA_ALLOW_REMOTE  set to 1 to serve non-loopback hosts
+  KUBEAURA_NO_BROWSER    set to 1 to skip opening a browser
+  KUBEAURA_DESKTOP       set to 1 for the desktop window
+  KUBEAURA_AI_PROVIDER   anthropic | ollama | openai
+  KUBEAURA_AI_MODEL      model id override
   ANTHROPIC_API_KEY       enables the Anthropic backend
   OPENAI_BASE_URL         OpenAI-compatible endpoint (LM Studio, vLLM, …)
   OPENAI_API_KEY          bearer token for that endpoint (optional locally)
@@ -247,7 +247,7 @@ ENVIRONMENT
   Precedence: flags > environment > config file > defaults.
 
 DOCS
-  https://github.com/devganeshg/kubemind
+  https://github.com/devganeshg/kubeaura
 `, config.Path())
 }
 
@@ -263,7 +263,7 @@ func runConfigCmd(args []string) {
 		fmt.Println(p)
 	case "init":
 		if p == "" {
-			log.Fatal("could not determine a config location; set KUBEMIND_CONFIG")
+			log.Fatal("could not determine a config location; set KUBEAURA_CONFIG")
 		}
 		if _, err := os.Stat(p); err == nil {
 			fmt.Printf("config already exists: %s\n(delete it first, or edit it in place)\n", p)
@@ -275,9 +275,9 @@ func runConfigCmd(args []string) {
 		if err := os.WriteFile(p, []byte(config.Example()), 0o600); err != nil {
 			log.Fatalf("could not write %s: %v", p, err)
 		}
-		fmt.Printf("wrote %s\n\nEvery key is optional and commented. Edit it, then run `kubemind`.\n", p)
+		fmt.Printf("wrote %s\n\nEvery key is optional and commented. Edit it, then run `kubeaura`.\n", p)
 	default:
-		fmt.Fprintf(os.Stderr, "usage: kubemind config <init|path>\n")
+		fmt.Fprintf(os.Stderr, "usage: kubeaura config <init|path>\n")
 		os.Exit(2)
 	}
 }

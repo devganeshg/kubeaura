@@ -1,7 +1,7 @@
 name: Release
 
 # Tag a version (e.g. v0.1.0) to build cross-platform binaries and publish them
-# to GitHub Releases so users can download and run KubeMind without Go, and to
+# to GitHub Releases so users can download and run KubeAura without Go, and to
 # push the container image the in-cluster manifests reference.
 on:
   push:
@@ -77,8 +77,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.repository_owner }}/kubemind
-            ${{ steps.hub.outputs.enabled == 'true' && format('docker.io/{0}/kubemind', secrets.DOCKERHUB_USERNAME) || '' }}
+            ghcr.io/${{ github.repository_owner }}/kubeaura
+            ${{ steps.hub.outputs.enabled == 'true' && format('docker.io/{0}/kubeaura', secrets.DOCKERHUB_USERNAME) || '' }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -105,6 +105,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/kubemind
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/kubeaura
           short-description: "An AI-assisted Kubernetes cockpit you run yourself"
           readme-filepath: ./README.md

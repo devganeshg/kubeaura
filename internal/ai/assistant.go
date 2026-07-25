@@ -225,7 +225,7 @@ func (c *Assistant) complete(ctx context.Context, system, user string, maxTokens
 
 // --- High-level capabilities ---
 
-const querySystem = `You are KubeMind, the voice assistant inside a Kubernetes cluster management UI. You are given
+const querySystem = `You are KubeAura, the voice assistant inside a Kubernetes cluster management UI. You are given
 a JSON snapshot of the user's live cluster (summary counts plus lists of pods, deployments, services, nodes, and
 events) and an optional DOCUMENT CONTEXT block sourced from project documentation.
 
@@ -275,7 +275,7 @@ func (c *Assistant) QueryStreamWithDocs(ctx context.Context, question, snapshotJ
 	return answer, err
 }
 
-const troubleshootSystem = `You are KubeMind, an expert Kubernetes troubleshooter. You are given the full JSON
+const troubleshootSystem = `You are KubeAura, an expert Kubernetes troubleshooter. You are given the full JSON
 description of a single pod, including its spec, status, recent events, and container logs. Produce a focused
 Root Cause Analysis with these markdown sections:
 ## Root Cause
@@ -290,7 +290,7 @@ func (c *Assistant) Troubleshoot(ctx context.Context, podDetailJSON string) (str
 	return c.complete(ctx, troubleshootSystem, user, 3072, "high")
 }
 
-const triageSystem = `You are KubeMind, an SRE on-call triage assistant. You are given a JSON list of the
+const triageSystem = `You are KubeAura, an SRE on-call triage assistant. You are given a JSON list of the
 cluster's current alerts (crashlooping pods, degraded workloads, node pressure, failed jobs, warning events, etc.)
 plus a health summary. Produce a prioritized incident triage using this markdown structure:
 ## Top Priority (what to fix first, and why it matters most)
@@ -306,7 +306,7 @@ func (c *Assistant) Triage(ctx context.Context, alertsJSON string) (string, erro
 	return c.complete(ctx, triageSystem, user, 3072, "high")
 }
 
-const reviewSystem = `You are KubeMind, a Kubernetes manifest reviewer. You are given a YAML manifest. Review it
+const reviewSystem = `You are KubeAura, a Kubernetes manifest reviewer. You are given a YAML manifest. Review it
 and respond in markdown with these sections:
 ## Summary (one line: what this manifest deploys)
 ## Correctness (bugs, invalid fields, missing required settings)
@@ -321,7 +321,7 @@ func (c *Assistant) Review(ctx context.Context, yaml string) (string, error) {
 	return c.complete(ctx, reviewSystem, user, 3072, "high")
 }
 
-const topologySystem = `You are KubeMind, a Kubernetes architecture explainer. You are given a JSON graph of a
+const topologySystem = `You are KubeAura, a Kubernetes architecture explainer. You are given a JSON graph of a
 namespace's resources: nodes (Ingress, Service, Deployment/StatefulSet/DaemonSet, Pod) and edges (routes, selects,
 owns). Explain the architecture in plain language with this markdown structure:
 ## Traffic Path (how a request flows from Ingress down to Pods)
@@ -336,7 +336,7 @@ func (c *Assistant) ExplainTopology(ctx context.Context, topologyJSON string) (s
 	return c.complete(ctx, topologySystem, user, 2048, "medium")
 }
 
-const logSummarySystem = `You are KubeMind. You are given raw container log lines from a Kubernetes pod. Summarize
+const logSummarySystem = `You are KubeAura. You are given raw container log lines from a Kubernetes pod. Summarize
 them for an operator in markdown:
 ## Summary (what the app is doing / its state in 1-2 lines)
 ## Errors & Warnings (the distinct problems, most severe first, with the exact log line)
@@ -349,7 +349,7 @@ func (c *Assistant) SummarizeLogs(ctx context.Context, logs string) (string, err
 	return c.complete(ctx, logSummarySystem, user, 2048, "medium")
 }
 
-const generateSystem = `You are KubeMind, a Kubernetes manifest generator. The user describes a workload in
+const generateSystem = `You are KubeAura, a Kubernetes manifest generator. The user describes a workload in
 natural language. Output ONLY valid, apply-ready Kubernetes YAML — no prose, no markdown fences, no explanation.
 Follow best practices: set resource requests/limits, liveness/readiness probes where sensible, labels, and a
 non-root securityContext. Use apiVersion apps/v1 for Deployments. If multiple objects are needed (e.g. Deployment

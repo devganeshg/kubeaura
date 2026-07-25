@@ -1,6 +1,6 @@
 version: 2
 
-# KubeMind links client-go and a dozen transitive Kubernetes libraries straight
+# KubeAura links client-go and a dozen transitive Kubernetes libraries straight
 # into the shipped binary, so dependency updates are security updates. Grouping
 # them keeps the PR volume survivable for a small project.
 updates:

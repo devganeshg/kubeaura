@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// AuditEntry is one write action taken through KubeMind. The tool keeps a local
+// AuditEntry is one write action taken through KubeAura. The tool keeps a local
 // trail of everything that mutates the cluster so an operator has a clear record
 // of changes made outside CI/CD. It's in-memory (a ring buffer) — nothing is
 // written to disk, matching the "never persist" posture.

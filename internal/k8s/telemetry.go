@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Telemetry reports which observability backends KubeMind auto-discovered in
+// Telemetry reports which observability backends KubeAura auto-discovered in
 // the cluster, so the UI can show live metrics and deep-link out to dashboards
 // without any configuration (the "zero-config telemetry" requirement).
 type Telemetry struct {

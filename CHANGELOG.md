@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to KubeMind. The format follows
+All notable changes to KubeAura. The format follows
 [Keep a Changelog](https://keepachangelog.com); versioning follows
 [SemVer](https://semver.org). Pre-1.0, minor versions may break things — when
 they do, it will say so here.
@@ -9,7 +9,7 @@ they do, it will say so here.
 
 ## [v0.1.0] — 2026-07-25
 
-First public release. KubeMind is a single binary that reads your existing
+First public release. KubeAura is a single binary that reads your existing
 kubeconfig and serves a Kubernetes cockpit with an AI assistant you point at
 whichever model you like — including one running entirely on your own machine.
 
@@ -53,7 +53,7 @@ CRDs exist and degrades quietly when they don't.
 
 ### Security posture
 
-KubeMind has no authentication of its own; it acts with your kubeconfig, for
+KubeAura has no authentication of its own; it acts with your kubeconfig, for
 you, on your machine. Everything follows from that:
 
 - Binds `127.0.0.1:7654`. Going wider requires `--allow-remote` and prints a
@@ -72,7 +72,7 @@ you, on your machine. Everything follows from that:
 
 macOS, Linux, and Windows binaries with published checksums; a
 checksum-verifying install script; `go install`; and a multi-arch container
-image at `ghcr.io/devganeshg/kubemind`. The same binary opens as a native
+image at `ghcr.io/devganeshg/kubeaura`. The same binary opens as a native
 desktop window with `--desktop`.
 
 ### Known limitations

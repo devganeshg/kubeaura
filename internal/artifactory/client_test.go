@@ -6,13 +6,13 @@ import (
 
 func TestImageManifest(t *testing.T) {
 	manifest := &ImageManifest{
-		Name:   "k8s/kubemind",
+		Name:   "k8s/kubeaura",
 		Tag:    "v1.2.3",
 		Digest: "sha256:abcd1234",
 		Size:   1024 * 1024, // 1MB
 	}
 
-	if manifest.Name != "k8s/kubemind" {
+	if manifest.Name != "k8s/kubeaura" {
 		t.Error("name mismatch")
 	}
 

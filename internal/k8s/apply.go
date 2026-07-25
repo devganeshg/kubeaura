@@ -91,7 +91,7 @@ func applyOne(cx context.Context, ri dynamic.ResourceInterface, obj *unstructure
 		if mErr != nil {
 			return fmt.Sprintf("error %s/%s: %v", gvk.Kind, name, mErr)
 		}
-		_, pErr := ri.Patch(cx, name, types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: "kubemind"})
+		_, pErr := ri.Patch(cx, name, types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: "kubeaura"})
 		if pErr != nil {
 			return fmt.Sprintf("error updating %s/%s: %v", gvk.Kind, name, pErr)
 		}
@@ -161,7 +161,7 @@ func (c *Client) DiffYAML(yamlText string) ([]DiffDoc, error) {
 		data, _ := obj.MarshalJSON()
 		force := true
 		dryApplied, applyErr := ri.Patch(cx, obj.GetName(), types.ApplyPatchType, data,
-			metav1.PatchOptions{FieldManager: "kubemind", DryRun: []string{metav1.DryRunAll}, Force: &force})
+			metav1.PatchOptions{FieldManager: "kubeaura", DryRun: []string{metav1.DryRunAll}, Force: &force})
 		if getErr != nil {
 			d.Action = "create"
 			if applyErr == nil {

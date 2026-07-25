@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KubeMind — an AI-assisted Kubernetes cockpit you run yourself</title>
+<title>KubeAura — an AI-assisted Kubernetes cockpit you run yourself</title>
 <meta name="description" content="One binary, your kubeconfig, your choice of model. A full Kubernetes cockpit with an AI assistant that can run entirely on your own machine. Apache-2.0.">
-<link rel="canonical" href="https://devganeshg.github.io/kubemind/">
+<link rel="canonical" href="https://devganeshg.github.io/kubeaura/">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="KubeMind — an AI-assisted Kubernetes cockpit you run yourself">
+<meta property="og:title" content="KubeAura — an AI-assisted Kubernetes cockpit you run yourself">
 <meta property="og:description" content="One binary, your kubeconfig, your choice of model. Nothing leaves your machine unless you point it at a hosted model.">
-<meta property="og:image" content="https://devganeshg.github.io/kubemind/assets/screenshots/dashboard.jpg">
+<meta property="og:image" content="https://devganeshg.github.io/kubeaura/assets/screenshots/dashboard.jpg">
 <meta name="twitter:card" content="summary_large_image">
 
 <link rel="icon" href="assets/logo-mark.svg">
@@ -139,7 +139,7 @@
     <div class="spacer"></div>
     <a class="small" href="#features">Features</a>
     <a class="small" href="#install">Install</a>
-    <a class="small" href="https://github.com/devganeshg/kubemind">GitHub</a>
+    <a class="small" href="https://github.com/devganeshg/kubeaura">GitHub</a>
   </div>
 </header>
 
@@ -151,16 +151,16 @@
       No server to deploy, no database, no account.
     </p>
 
-    <div class="cmd"><span class="p">$</span> curl -sSfL https://raw.githubusercontent.com/devganeshg/kubemind/main/scripts/install.sh | sh</div>
+    <div class="cmd"><span class="p">$</span> curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh</div>
 
     <div class="cta">
-      <a class="btn primary" href="https://github.com/devganeshg/kubemind">Get started</a>
-      <a class="btn" href="https://github.com/devganeshg/kubemind/releases">Download</a>
+      <a class="btn primary" href="https://github.com/devganeshg/kubeaura">Get started</a>
+      <a class="btn" href="https://github.com/devganeshg/kubeaura/releases">Download</a>
     </div>
     <p class="note">Apache-2.0 · macOS, Linux, Windows · works with any cluster <code>kubectl</code> can reach</p>
 
     <figure class="shot">
-      <img src="assets/screenshots/dashboard.jpg" alt="KubeMind command center showing cluster health, a live intelligence feed of critical and warning alerts, and running agents" width="1440" height="723" loading="eager">
+      <img src="assets/screenshots/dashboard.jpg" alt="KubeAura command center showing cluster health, a live intelligence feed of critical and warning alerts, and running agents" width="1440" height="723" loading="eager">
       <figcaption>The command center — cluster health, live triage feed, and everything wrong in one place.</figcaption>
     </figure>
   </div>
@@ -225,33 +225,33 @@
     <p class="lead">Pick one. Every release ships checksums, and the script verifies them for you.</p>
 
 <pre><span class="c"># macOS / Linux — download, verify, install</span>
-<span class="p">$</span> curl -sSfL https://raw.githubusercontent.com/devganeshg/kubemind/main/scripts/install.sh | sh
+<span class="p">$</span> curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
 
 <span class="c"># With Go installed</span>
-<span class="p">$</span> go install github.com/devganeshg/kubemind/cmd/kubemind@latest
+<span class="p">$</span> go install github.com/devganeshg/kubeaura/cmd/kubeaura@latest
 
 <span class="c"># Container</span>
-<span class="p">$</span> docker run --rm -p 7654:7654 -v ~/.kube:/home/nonroot/.kube:ro ghcr.io/devganeshg/kubemind
+<span class="p">$</span> docker run --rm -p 7654:7654 -v ~/.kube:/home/nonroot/.kube:ro ghcr.io/devganeshg/kubeaura
 <span class="c">#   (remote clusters; for kind/minikube run the binary directly)</span>
 
 <span class="c"># Windows: grab the .zip from the releases page</span></pre>
 
 <pre><span class="c"># Then just run it — it reads your current kube context</span>
-<span class="p">$</span> kubemind
-<span class="p">$</span> kubemind --desktop        <span class="c"># native window</span>
-<span class="p">$</span> kubemind config init      <span class="c"># optional: a commented config file</span></pre>
+<span class="p">$</span> kubeaura
+<span class="p">$</span> kubeaura --desktop        <span class="c"># native window</span>
+<span class="p">$</span> kubeaura config init      <span class="c"># optional: a commented config file</span></pre>
 
     <div class="callout">
       <h3>A note on how it's exposed</h3>
       <p>
-        KubeMind has no login of its own — it is meant for one person on their own machine.
+        KubeAura has no login of its own — it is meant for one person on their own machine.
         It binds <code>127.0.0.1</code> by default and refuses cross-origin and DNS-rebinding
         requests, so a web page you visit can't drive your cluster behind your back.
       </p>
       <p>
         Sharing an instance with a team changes that completely. The in-cluster manifests ship
         read-only, with no Secrets access, and expect you to authenticate the ingress.
-        <a href="https://github.com/devganeshg/kubemind/blob/main/SECURITY.md">Read the threat model →</a>
+        <a href="https://github.com/devganeshg/kubeaura/blob/main/SECURITY.md">Read the threat model →</a>
       </p>
     </div>
   </section>
@@ -260,20 +260,20 @@
 <footer>
   <div class="wrap">
     <p>
-      <strong>KubeMind</strong> is free and open source under the
-      <a href="https://github.com/devganeshg/kubemind/blob/main/LICENSE">Apache License 2.0</a>.
+      <strong>KubeAura</strong> is free and open source under the
+      <a href="https://github.com/devganeshg/kubeaura/blob/main/LICENSE">Apache License 2.0</a>.
       Copyright © 2026 Ganesh Giri.
     </p>
     <p>
-      Kubernetes and the Kubernetes logo are trademarks of The Linux Foundation. KubeMind is an
+      Kubernetes and the Kubernetes logo are trademarks of The Linux Foundation. KubeAura is an
       independent project and is not affiliated with, sponsored by, or endorsed by The Linux
       Foundation or the CNCF. All other trademarks are the property of their respective owners.
     </p>
     <p>
-      <a href="https://github.com/devganeshg/kubemind">GitHub</a> ·
-      <a href="https://github.com/devganeshg/kubemind/releases">Releases</a> ·
-      <a href="https://github.com/devganeshg/kubemind/blob/main/CONTRIBUTING.md">Contributing</a> ·
-      <a href="https://github.com/devganeshg/kubemind/security/advisories/new">Report a vulnerability</a>
+      <a href="https://github.com/devganeshg/kubeaura">GitHub</a> ·
+      <a href="https://github.com/devganeshg/kubeaura/releases">Releases</a> ·
+      <a href="https://github.com/devganeshg/kubeaura/blob/main/CONTRIBUTING.md">Contributing</a> ·
+      <a href="https://github.com/devganeshg/kubeaura/security/advisories/new">Report a vulnerability</a>
     </p>
   </div>
 </footer>

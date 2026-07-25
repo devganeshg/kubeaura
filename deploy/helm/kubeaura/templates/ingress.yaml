@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "kubemind.fullname" . }}
+  name: {{ include "kubeaura.fullname" . }}
   labels:
-    {{- include "kubemind.labels" . | nindent 4 }}
+    {{- include "kubeaura.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -27,7 +27,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "kubemind.fullname" $ }}
+                name: {{ include "kubeaura.fullname" $ }}
                 port:
                   number: {{ $.Values.service.port }}
           {{- end }}

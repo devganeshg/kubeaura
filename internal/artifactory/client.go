@@ -21,7 +21,7 @@ type Client struct {
 
 // ImageManifest represents container image metadata in registry.
 type ImageManifest struct {
-	Name         string    `json:"name"`   // e.g., "k8s/kubemind"
+	Name         string    `json:"name"`   // e.g., "k8s/kubeaura"
 	Tag          string    `json:"tag"`    // e.g., "v1.2.3" or "develop"
 	Digest       string    `json:"digest"` // SHA256
 	Size         int64     `json:"size"`

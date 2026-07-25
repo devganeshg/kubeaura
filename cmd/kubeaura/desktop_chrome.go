@@ -16,16 +16,16 @@ import (
 //
 // A dedicated --user-data-dir forces a separate browser process; without it
 // Chrome hands the window to an already-running instance and exits at once,
-// which would make KubeMind quit while its window is still open. The profile
+// which would make KubeAura quit while its window is still open. The profile
 // is keyed by port so (a) relaunches on the same port reuse the profile and
-// its remembered mic permission, and (b) a second concurrent KubeMind (on
+// its remembered mic permission, and (b) a second concurrent KubeAura (on
 // its fallback port) gets its own browser process instead of a hand-off.
 func chromeAppWindow(url string) bool {
-	if os.Getenv("KUBEMIND_WEBVIEW") == "1" {
+	if os.Getenv("KUBEAURA_WEBVIEW") == "1" {
 		return false // operator explicitly wants the native webview
 	}
 	port := url[strings.LastIndex(url, ":")+1:]
-	profile := filepath.Join(os.TempDir(), "kubemind-app-profile-"+port)
+	profile := filepath.Join(os.TempDir(), "kubeaura-app-profile-"+port)
 	for _, bin := range chromeCandidates() {
 		path := bin
 		if !filepath.IsAbs(bin) {

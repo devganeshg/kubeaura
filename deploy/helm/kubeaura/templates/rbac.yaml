@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "kubemind.serviceAccountName" . }}
+  name: {{ include "kubeaura.serviceAccountName" . }}
   labels:
-    {{- include "kubemind.labels" . | nindent 4 }}
+    {{- include "kubeaura.labels" . | nindent 4 }}
 {{- if .Values.rbac.create }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "kubemind.fullname" . }}
+  name: {{ include "kubeaura.fullname" . }}
   labels:
-    {{- include "kubemind.labels" . | nindent 4 }}
+    {{- include "kubeaura.labels" . | nindent 4 }}
 rules:
-  # Read + inspect everything KubeMind lists in the UI.
+  # Read + inspect everything KubeAura lists in the UI.
   - apiGroups: [""]
     resources: [pods, pods/log, services, configmaps, namespaces, nodes, events, persistentvolumeclaims, persistentvolumes, serviceaccounts]
     verbs: [get, list, watch]
@@ -41,7 +41,7 @@ rules:
     verbs: [get, list, watch]
   {{- if not .Values.rbac.readOnly }}
   # Mutations for scale / restart / delete / apply. Drop this block (or set
-  # rbac.readOnly=true) to run KubeMind in strictly read-only mode.
+  # rbac.readOnly=true) to run KubeAura in strictly read-only mode.
   - apiGroups: [""]
     resources: [pods, services, configmaps]
     verbs: [create, update, patch, delete]
@@ -59,15 +59,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "kubemind.fullname" . }}
+  name: {{ include "kubeaura.fullname" . }}
   labels:
-    {{- include "kubemind.labels" . | nindent 4 }}
+    {{- include "kubeaura.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "kubemind.fullname" . }}
+  name: {{ include "kubeaura.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "kubemind.serviceAccountName" . }}
+    name: {{ include "kubeaura.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}

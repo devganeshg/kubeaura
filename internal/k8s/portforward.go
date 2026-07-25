@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
-// PortForward is one active port-forward the tool is managing. KubeMind holds
+// PortForward is one active port-forward the tool is managing. KubeAura holds
 // the forward open in-process (a goroutine per forward) and tracks them all so
 // the operator has a single dashboard to create and tear them down — matching
 // the "Live Port-Forward Tracker" requirement.
