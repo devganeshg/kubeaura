@@ -1,0 +1,70 @@
+# Default values for KubeAura.
+
+image:
+  repository: ghcr.io/devganeshg/kubeaura
+  tag: ""            # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# AI Assistant (Claude). Provide the key one of two ways:
+#   ai.apiKey            -> chart creates a Secret with this value
+#   ai.existingSecret    -> reference a Secret you manage (key: ANTHROPIC_API_KEY)
+# Leave both empty to run KubeAura without the AI Assistant.
+ai:
+  apiKey: ""
+  existingSecret: ""
+  model: "claude-opus-5"
+
+rbac:
+  # true  -> grant get/list/watch only (dashboard + browse, no mutations)
+  # false -> also grant create/update/patch/delete (scale/restart/delete/apply)
+  #
+  # Read-only by default: a shared in-cluster instance has no login of its own,
+  # so anyone who reaches the Service acts with the ServiceAccount's full
+  # permissions. Set this to false only once your ingress authenticates users.
+  create: true
+  readOnly: true
+
+  # Reading Secrets is what powers the Secrets browser and some AI diagnostics.
+  # It also means every Secret in the cluster is visible to anyone who reaches
+  # the UI — the single biggest reason to authenticate your ingress.
+  allowSecrets: false
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: kubeaura.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Pod-level hardening (image already runs as nonroot).
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

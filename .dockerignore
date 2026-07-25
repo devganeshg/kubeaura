@@ -1,0 +1,10 @@
+.git
+.github
+dist
+bin
+kubeaura
+kubeaura-*
+*.md
+deploy
+docs
+.DS_Store

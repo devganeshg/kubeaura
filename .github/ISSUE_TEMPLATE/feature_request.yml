@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What operator workflow are you trying to improve?
+      description: Describe the task you're doing today and where KubeAura gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+  - type: checkboxes
+    id: philosophy
+    attributes:
+      label: Fit
+      options:
+        - label: This keeps the single-binary, no-backend model (integrations detect rather than install)

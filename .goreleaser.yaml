@@ -1,0 +1,107 @@
+version: 2
+
+project_name: kubeaura
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: kubeaura
+    main: ./cmd/kubeaura
+    binary: kubeaura
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: kubeaura
+    name_template: "kubeaura_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    # Apache-2.0 section 4 requires the license and attribution notices to
+    # travel with every binary distribution.
+    files:
+      - LICENSE
+      - NOTICE
+      - THIRD_PARTY_LICENSES.md
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+# Package managers are opt-in — see docs/RELEASING.md.
+#
+# Uncomment a block only AFTER creating the repo it publishes to and adding the
+# matching token secret. GoReleaser resolves `.Env.*` at release time, so an
+# enabled block with a missing secret FAILS the whole release. Leaving them
+# commented lets `git tag` publish archives and the container image today.
+#
+# Homebrew — needs a public repo `devganeshg/homebrew-tap` and a
+# HOMEBREW_TAP_TOKEN secret with contents:write on it. Then users get:
+#   brew install devganeshg/tap/kubeaura
+#
+# brews:
+#   - name: kubeaura
+#     repository:
+#       owner: devganeshg
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     homepage: "https://github.com/devganeshg/kubeaura"
+#     description: "An AI-assisted Kubernetes cockpit you run yourself"
+#     license: "Apache-2.0"
+#     test: |
+#       system "#{bin}/kubeaura", "--version"
+#     install: |
+#       bin.install "kubeaura"
+#
+# Scoop — needs a public repo `devganeshg/scoop-bucket` and a
+# SCOOP_BUCKET_TOKEN secret. Then Windows users get:
+#   scoop bucket add devganeshg https://github.com/devganeshg/scoop-bucket
+#   scoop install kubeaura
+#
+# scoops:
+#   - repository:
+#       owner: devganeshg
+#       name: scoop-bucket
+#       token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+#     homepage: "https://github.com/devganeshg/kubeaura"
+#     description: "An AI-assisted Kubernetes cockpit you run yourself"
+#     license: "Apache-2.0"
+
+release:
+  github:
+    owner: devganeshg
+    name: kubeaura
+  draft: false
+  footer: |
+    ## Install
+
+    ```sh
+    # macOS / Linux — script (verifies the checksum for you)
+    curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
+
+    # With Go installed
+    go install github.com/devganeshg/kubeaura/cmd/kubeaura@latest
+
+    # Windows — download the .zip below, or use the container image
+    docker run --rm -v ~/.kube:/home/nonroot/.kube ghcr.io/devganeshg/kubeaura
+    ```
+
+    Verify a download against `checksums.txt`:
+
+    ```sh
+    sha256sum -c checksums.txt --ignore-missing
+    ```
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"

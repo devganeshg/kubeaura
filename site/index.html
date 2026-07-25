@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KubeAura — an AI-assisted Kubernetes cockpit you run yourself</title>
+<meta name="description" content="One binary, your kubeconfig, your choice of model. A full Kubernetes cockpit with an AI assistant that can run entirely on your own machine. Apache-2.0.">
+<link rel="canonical" href="https://devganeshg.github.io/kubeaura/">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="KubeAura — an AI-assisted Kubernetes cockpit you run yourself">
+<meta property="og:description" content="One binary, your kubeconfig, your choice of model. Nothing leaves your machine unless you point it at a hosted model.">
+<meta property="og:image" content="https://devganeshg.github.io/kubeaura/assets/screenshots/dashboard.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="assets/logo-mark.svg">
+
+<style>
+  :root{
+    --ember:#ff4000; --magenta:#ff0072;
+    --bg:#0b0d11; --panel:#12151c; --line:#222834;
+    --fg:#e8edf5; --muted:#96a0b2;
+    --grad:linear-gradient(135deg,#ff4000,#ff0072);
+    --max:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  .wrap{max-width:var(--max); margin:0 auto; padding:0 24px}
+  code,kbd,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  /* ambient brand glow */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(60rem 30rem at 12% -8%, rgba(255,64,0,.16), transparent 60%),
+      radial-gradient(50rem 26rem at 88% 4%, rgba(255,0,114,.13), transparent 62%);
+  }
+  main,header,footer{position:relative; z-index:1}
+
+  header{padding:22px 0}
+  .nav{display:flex; align-items:center; gap:14px}
+  .nav svg{display:block}
+  .brand{font-weight:800; letter-spacing:.4px; font-size:19px}
+  .brand span{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .nav .spacer{flex:1}
+  .nav a.small{color:var(--muted); text-decoration:none; font-size:14px}
+  .nav a.small:hover{color:var(--fg)}
+
+  .hero{padding:56px 0 20px; text-align:center}
+  h1{font-size:clamp(34px,5.6vw,56px); line-height:1.08; margin:0 0 18px; letter-spacing:-1px}
+  h1 em{font-style:normal; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .sub{font-size:clamp(17px,2.2vw,20px); color:var(--muted); max-width:640px; margin:0 auto 30px}
+
+  .cmd{
+    display:inline-flex; align-items:center; gap:14px; text-align:left;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:13px 18px; font-size:14px; max-width:100%; overflow-x:auto;
+  }
+  .cmd .p{color:var(--ember)}
+  .cta{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin:26px 0 10px}
+  .btn{
+    display:inline-block; padding:11px 22px; border-radius:10px; text-decoration:none;
+    font-weight:600; font-size:15px; border:1px solid var(--line);
+  }
+  .btn.primary{background:var(--grad); border-color:transparent; color:#fff}
+  .btn:hover{border-color:#3a4354}
+  .btn.primary:hover{opacity:.92}
+  .note{color:var(--muted); font-size:13.5px; margin-top:6px}
+
+  .shot{margin:44px auto 0; max-width:1000px}
+  .shot img{
+    width:100%; height:auto; display:block; border-radius:14px;
+    border:1px solid var(--line); box-shadow:0 30px 70px -30px rgba(0,0,0,.9);
+  }
+  figcaption{color:var(--muted); font-size:13.5px; text-align:center; margin-top:12px}
+
+  section{padding:64px 0}
+  h2{font-size:clamp(24px,3.4vw,32px); margin:0 0 10px; letter-spacing:-.5px}
+  .lead{color:var(--muted); margin:0 0 30px; max-width:660px}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:18px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px}
+  .card h3{margin:0 0 8px; font-size:16.5px}
+  .card p{margin:0; color:var(--muted); font-size:14.5px}
+  .card .ico{font-size:20px; display:block; margin-bottom:12px}
+
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  .two img{width:100%; height:auto; display:block; border-radius:12px; border:1px solid var(--line)}
+  @media(max-width:760px){ .two{grid-template-columns:1fr} }
+
+  pre{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:18px; overflow-x:auto; font-size:13.5px; line-height:1.7; margin:0 0 16px;
+  }
+  pre .c{color:#6d7688}
+  pre .p{color:var(--ember)}
+
+  .callout{
+    border:1px solid var(--line); border-left:3px solid var(--ember);
+    background:var(--panel); border-radius:0 12px 12px 0; padding:20px 24px;
+  }
+  .callout h3{margin:0 0 8px; font-size:16.5px}
+  .callout p{margin:0 0 10px; color:var(--muted); font-size:14.5px}
+  .callout p:last-child{margin:0}
+
+  footer{border-top:1px solid var(--line); padding:34px 0 60px; color:var(--muted); font-size:13.5px}
+  footer a{color:var(--muted)}
+  footer p{margin:0 0 10px; max-width:760px}
+
+  @media (prefers-reduced-motion:no-preference){
+    .shot img{transition:transform .3s ease}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <svg viewBox="0 0 64 64" width="34" height="34" aria-hidden="true">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#ff4000"/><stop offset="1" stop-color="#ff0072"/>
+      </linearGradient></defs>
+      <path d="M32 3 57.1 17.5v29L32 61 6.9 46.5v-29Z" fill="none" stroke="url(#g)" stroke-width="4" stroke-linejoin="round"/>
+      <g stroke="url(#g)" stroke-width="2.6" stroke-linecap="round">
+        <path d="M32 33 32 19"/><path d="M32 33 20.5 40.5"/><path d="M32 33 43.5 40.5"/>
+      </g>
+      <circle cx="32" cy="33" r="5.8" fill="url(#g)"/>
+      <circle cx="32" cy="17.8" r="3.5" fill="url(#g)"/>
+      <circle cx="19.4" cy="41.4" r="3.5" fill="url(#g)"/>
+      <circle cx="44.6" cy="41.4" r="3.5" fill="url(#g)"/>
+    </svg>
+    <div class="brand">Kube<span>Aura</span></div>
+    <div class="spacer"></div>
+    <a class="small" href="#features">Features</a>
+    <a class="small" href="#install">Install</a>
+    <a class="small" href="https://github.com/devganeshg/kubeaura">GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>An AI-assisted Kubernetes<br><em>cockpit you run yourself</em></h1>
+    <p class="sub">
+      One binary. Your kubeconfig. Your choice of model — local or hosted.
+      No server to deploy, no database, no account.
+    </p>
+
+    <div class="cmd"><span class="p">$</span> curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh</div>
+
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/devganeshg/kubeaura">Get started</a>
+      <a class="btn" href="https://github.com/devganeshg/kubeaura/releases">Download</a>
+    </div>
+    <p class="note">Apache-2.0 · macOS, Linux, Windows · works with any cluster <code>kubectl</code> can reach</p>
+
+    <figure class="shot">
+      <img src="assets/screenshots/dashboard.jpg" alt="KubeAura command center showing cluster health, a live intelligence feed of critical and warning alerts, and running agents" width="1440" height="723" loading="eager">
+      <figcaption>The command center — cluster health, live triage feed, and everything wrong in one place.</figcaption>
+    </figure>
+  </div>
+
+  <section id="features" class="wrap">
+    <h2>What it does</h2>
+    <p class="lead">A full operator cockpit in the spirit of k9s, Lens, and Headlamp — with an assistant that actually knows your cluster.</p>
+    <div class="grid">
+      <div class="card">
+        <span class="ico">🧠</span>
+        <h3>Bring your own model</h3>
+        <p>Anthropic, Ollama, or any OpenAI-compatible server. Run a local model and nothing ever leaves your machine.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🩺</span>
+        <h3>Triage, not dashboards</h3>
+        <p>Crashloops, OOMKills, restart storms, degraded workloads, expiring certificates — one prioritised list.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🕸️</span>
+        <h3>Live topology</h3>
+        <p>Ingress → Service → Workload → Pod, with replica health and <code>NoEndpoints</code> detection.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🔌</span>
+        <h3>Detect, don't install</h3>
+        <p>Lights up Trivy, Kyverno/OPA, Argo CD, Flux, KEDA, and cert-manager when their CRDs exist. Degrades quietly when they don't.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🔒</span>
+        <h3>Your RBAC is the boundary</h3>
+        <p>It acts as your kubeconfig credential and nothing more. Actions you can't perform are greyed out.</p>
+      </div>
+      <div class="card">
+        <span class="ico">🖥️</span>
+        <h3>Desktop or browser</h3>
+        <p>The same binary opens as a native desktop window on macOS, Windows, and Linux. No Electron.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2>See it working</h2>
+    <p class="lead">Real screenshots from a running cluster — no mockups.</p>
+    <div class="two">
+      <img src="assets/screenshots/pods.jpg" alt="Pod list with inline CPU and memory usage, requests and limits, and per-row YAML, logs, diagnose and port-forward actions" loading="lazy">
+      <img src="assets/screenshots/topology.jpg" alt="Topology graph linking services to workloads to pods" loading="lazy">
+      <img src="assets/screenshots/alerts.jpg" alt="Alerts triage list with critical CrashLoopBackOff and expired certificate entries" loading="lazy">
+      <div class="card">
+        <h3>Also in the box</h3>
+        <p>
+          Metrics heatmaps · namespace quota dashboards · live log streaming with regex filters ·
+          pod exec · YAML diff-apply · port-forward tracker · an audit trail of every write ·
+          a ⌘K omnibox · and a voice mode that answers out loud.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="wrap">
+    <h2>Install</h2>
+    <p class="lead">Pick one. Every release ships checksums, and the script verifies them for you.</p>
+
+<pre><span class="c"># macOS / Linux — download, verify, install</span>
+<span class="p">$</span> curl -sSfL https://raw.githubusercontent.com/devganeshg/kubeaura/main/scripts/install.sh | sh
+
+<span class="c"># With Go installed</span>
+<span class="p">$</span> go install github.com/devganeshg/kubeaura/cmd/kubeaura@latest
+
+<span class="c"># Container</span>
+<span class="p">$</span> docker run --rm -p 7654:7654 -v ~/.kube:/home/nonroot/.kube:ro ghcr.io/devganeshg/kubeaura
+<span class="c">#   (remote clusters; for kind/minikube run the binary directly)</span>
+
+<span class="c"># Windows: grab the .zip from the releases page</span></pre>
+
+<pre><span class="c"># Then just run it — it reads your current kube context</span>
+<span class="p">$</span> kubeaura
+<span class="p">$</span> kubeaura --desktop        <span class="c"># native window</span>
+<span class="p">$</span> kubeaura config init      <span class="c"># optional: a commented config file</span></pre>
+
+    <div class="callout">
+      <h3>A note on how it's exposed</h3>
+      <p>
+        KubeAura has no login of its own — it is meant for one person on their own machine.
+        It binds <code>127.0.0.1</code> by default and refuses cross-origin and DNS-rebinding
+        requests, so a web page you visit can't drive your cluster behind your back.
+      </p>
+      <p>
+        Sharing an instance with a team changes that completely. The in-cluster manifests ship
+        read-only, with no Secrets access, and expect you to authenticate the ingress.
+        <a href="https://github.com/devganeshg/kubeaura/blob/main/SECURITY.md">Read the threat model →</a>
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      <strong>KubeAura</strong> is free and open source under the
+      <a href="https://github.com/devganeshg/kubeaura/blob/main/LICENSE">Apache License 2.0</a>.
+      Copyright © 2026 Ganesh Giri.
+    </p>
+    <p>
+      Kubernetes and the Kubernetes logo are trademarks of The Linux Foundation. KubeAura is an
+      independent project and is not affiliated with, sponsored by, or endorsed by The Linux
+      Foundation or the CNCF. All other trademarks are the property of their respective owners.
+    </p>
+    <p>
+      <a href="https://github.com/devganeshg/kubeaura">GitHub</a> ·
+      <a href="https://github.com/devganeshg/kubeaura/releases">Releases</a> ·
+      <a href="https://github.com/devganeshg/kubeaura/blob/main/CONTRIBUTING.md">Contributing</a> ·
+      <a href="https://github.com/devganeshg/kubeaura/security/advisories/new">Report a vulnerability</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

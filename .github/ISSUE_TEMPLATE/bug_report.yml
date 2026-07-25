@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in KubeAura doesn't work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: KubeAura version
+      description: Output of `kubeaura --version`
+      placeholder: kubeaura v0.9.0 (darwin/arm64, go1.26.4)
+    validations:
+      required: true
+  - type: input
+    id: cluster
+    attributes:
+      label: Cluster
+      description: Type and version — `kubectl version --short`
+      placeholder: kind v1.31.0 / EKS 1.30 / GKE 1.29
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you running it?
+      options:
+        - Local binary in a browser
+        - Desktop app (--desktop)
+        - In-cluster (Helm or install.yaml)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal output / browser console
+      description: Redact anything sensitive. API keys are never needed here.
+      render: shell

@@ -1,0 +1,50 @@
+name: Website
+
+# Publishes site/ to GitHub Pages. Enable once under
+# Settings → Pages → Source: GitHub Actions; after that every push to main
+# that touches the site or its images redeploys it. Hosting is free.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "assets/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The page references assets/screenshots/* and assets/logo-mark.svg, which
+      # live outside site/ so the README can share them.
+      - name: Assemble
+        run: |
+          mkdir -p _site
+          cp -r site/. _site/
+          mkdir -p _site/assets
+          cp -r assets/screenshots _site/assets/
+          cp assets/logo-mark.svg assets/logo.svg assets/logo-dark.svg _site/assets/
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
