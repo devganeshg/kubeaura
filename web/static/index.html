@@ -4038,6 +4038,7 @@
         helmreleases: "HelmReleases",
         clusters: "Fleet",
         helm: "Helm",
+        compliance: "Compliance",
       };
       let state = {
         kind: "dashboard",
@@ -4084,6 +4085,7 @@
               "quotas",
               "topology",
               "security",
+              "compliance",
               "policy",
               "gitops",
             ],
@@ -4210,6 +4212,8 @@
         '<rect x="2" y="3" width="9" height="7" rx="1"/><rect x="13" y="3" width="9" height="7" rx="1"/><rect x="2" y="14" width="9" height="7" rx="1"/><rect x="13" y="14" width="9" height="7" rx="1"/>';
       ICONS.helm =
         '<path d="M12 2 4 6v6c0 4.4 3.4 8.4 8 10 4.6-1.6 8-5.6 8-10V6z"/><path d="M10 8v8"/><path d="M14 8v8"/><path d="M10 12h4"/>';
+      ICONS.compliance =
+        '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/>';
       ICONS.clusterroles = ICONS.roles;
       ICONS.clusterrolebindings = ICONS.rolebindings;
       function icon(k) {
@@ -4275,6 +4279,7 @@
           if (state.kind === "quotas") return renderQuotas();
           if (state.kind === "clusters") return renderClusters();
           if (state.kind === "helm") return renderHelm();
+          if (state.kind === "compliance") return renderCompliance();
           if (state.kind === "security") return renderSecurity();
           if (state.kind === "gitops") return renderGitOps();
           if (state.kind === "policy") return renderPolicy();
@@ -6800,6 +6805,85 @@
         } catch (e) {
           out.innerHTML = `<div class="empty" style="color:var(--red)">⚠️ ${esc(e.message)}</div>`;
         }
+      }
+
+      // ---------- Compliance report ----------
+      // One verdict over the checks KubeAura already runs, plus the export
+      // that lets the evidence leave the tool.
+      async function renderCompliance() {
+        $("#main").innerHTML = `<h2>Compliance <span class="pill">${esc(state.ns || "all namespaces")}</span>
+      <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <span class="sub" style="color:var(--muted);font-size:12px">Export</span>
+        <button class="btn ghost" onclick="exportCompliance('html')">HTML</button>
+        <button class="btn ghost" onclick="exportCompliance('md')">Markdown</button>
+        <button class="btn ghost" onclick="exportCompliance('csv')">CSV</button>
+        <button class="btn ghost" onclick="exportCompliance('json')">JSON</button>
+      </span></h2>
+    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">Image vulnerabilities, policy results and RBAC posture in one verdict. A check that could not run is reported as unchecked, never as a pass.</div>
+    <div id="comp-body"><div class="empty"><span class="spin"></span></div></div>`;
+        try {
+          const r = await api(`/api/compliance/report?namespace=${state.ns}`);
+          window._compliance = r;
+          const verdictColor = r.compliant ? "var(--green)" : "var(--red)";
+          let h = `<div class="cards">
+        <div class="card"><div class="n" style="font-size:18px;color:${verdictColor}">${r.compliant ? "COMPLIANT" : "NOT COMPLIANT"}</div><div class="l">Verdict</div></div>
+        <div class="card"><div class="n" style="color:${r.vulnerabilities.critical ? "var(--red)" : "var(--green)"}">${r.vulnerabilities.critical}</div><div class="l">Critical CVEs</div></div>
+        <div class="card"><div class="n" style="color:${r.vulnerabilities.high ? "#f97316" : "var(--green)"}">${r.vulnerabilities.high}</div><div class="l">High CVEs</div></div>
+        <div class="card"><div class="n" style="color:${r.policy.fail ? "var(--red)" : "var(--green)"}">${r.policy.fail}</div><div class="l">Policy failures</div></div>
+        <div class="card"><div class="n" style="color:${r.rbac.deniedCount ? "var(--yellow)" : "var(--green)"}">${r.rbac.deniedCount}</div><div class="l">Denied permissions</div></div>
+      </div>`;
+
+          if ((r.violations || []).length) {
+            h += `<div class="chart-card"><h3>Violations</h3><ul style="margin:6px 0 0;padding-left:18px">${r.violations
+              .map((v) => `<li style="color:var(--red)">${esc(v)}</li>`)
+              .join("")}</ul></div>`;
+          }
+          if ((r.skipped || []).length) {
+            h += `<div class="chart-card"><h3>Not checked</h3>
+          <div class="sub">These did not run, so this report cannot certify them.</div>
+          <ul style="margin:6px 0 0;padding-left:18px">${r.skipped
+            .map((s) => `<li style="color:var(--muted)">${esc(s)}</li>`)
+            .join("")}</ul></div>`;
+          }
+
+          const worst = r.vulnerabilities.worst || [];
+          if (worst.length) {
+            h += `<div class="chart-card"><h3>Worst-affected workloads</h3>
+          <table style="font-size:12px"><thead><tr><th>Namespace</th><th>Workload</th><th>Image</th><th>Findings</th></tr></thead><tbody>`;
+            for (const v of worst) {
+              h += `<tr><td class="mono">${esc(v.namespace)}</td><td class="mono">${esc(v.workload || "—")}</td>
+            <td class="mono" style="color:var(--muted)">${esc(v.image)}</td>
+            <td style="white-space:nowrap">${sevBadge("C", v.critical, "CRITICAL")} ${sevBadge("H", v.high, "HIGH")} ${sevBadge("M", v.medium, "MEDIUM")} ${sevBadge("L", v.low, "LOW")}</td></tr>`;
+            }
+            h += `</tbody></table></div>`;
+          }
+
+          const fails = r.policy.failures || [];
+          if (fails.length) {
+            h += `<div class="chart-card"><h3>Policy failures</h3>
+          <table style="font-size:12px"><thead><tr><th>Namespace</th><th>Policy / rule</th><th>Severity</th><th>Resource</th><th>Message</th></tr></thead><tbody>`;
+            for (const p of fails) {
+              h += `<tr><td class="mono">${esc(p.namespace || "—")}</td>
+            <td class="mono">${esc(p.policy)}/${esc(p.rule)}</td>
+            <td class="mono" style="color:var(--muted)">${esc(p.severity || "—")}</td>
+            <td class="mono">${esc(p.resource || "—")}</td>
+            <td style="color:var(--muted)">${esc(p.message || "—")}</td></tr>`;
+            }
+            h += `</tbody></table></div>`;
+          }
+
+          h += `<div class="sub" style="color:var(--muted);font-size:11px;margin-top:14px">Context ${esc(r.context)} · cluster ${esc(r.clusterVersion || "unknown")} · generated ${esc(r.generatedAt)} · bar: ${r.thresholds.maxCritical} critical / ${r.thresholds.maxHigh} high / ${r.thresholds.maxPolicyFail} policy failures</div>`;
+          $("#comp-body").innerHTML = h;
+        } catch (e) {
+          $("#comp-body").innerHTML =
+            `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+      function exportCompliance(format) {
+        // A plain navigation lets the browser handle Content-Disposition, so
+        // the file lands in Downloads with the server's chosen name.
+        window.location = `/api/compliance/export?format=${encodeURIComponent(format)}&namespace=${encodeURIComponent(state.ns)}`;
+        toast(`Exporting compliance report as ${format.toUpperCase()}…`);
       }
 
       async function renderAudit() {

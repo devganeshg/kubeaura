@@ -4,6 +4,8 @@ package security
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -137,6 +139,51 @@ func CheckCompliance(scan *ImageScan, policy Policy) (bool, []string) {
 	}
 
 	return len(violations) == 0, violations
+}
+
+// BuiltinPolicies are the named bars an image can be checked against. They are
+// deliberately few and self-explanatory: a policy an operator has to look up is
+// a policy they will not trust the verdict of.
+var BuiltinPolicies = map[string]Policy{
+	"strict-production": {
+		Name:            "strict-production",
+		MaxCriticalCVEs: 0,
+		MaxHighCVEs:     0,
+		MaxMediumCVEs:   10,
+	},
+	"balanced-staging": {
+		Name:            "balanced-staging",
+		MaxCriticalCVEs: 0,
+		MaxHighCVEs:     5,
+		MaxMediumCVEs:   50,
+	},
+	"permissive-dev": {
+		Name:            "permissive-dev",
+		MaxCriticalCVEs: 5,
+		MaxHighCVEs:     25,
+		MaxMediumCVEs:   200,
+	},
+}
+
+// DefaultPolicyName is applied when a compliance check names no policy.
+const DefaultPolicyName = "strict-production"
+
+// PolicyByName returns a built-in policy. An unknown name is an error rather
+// than a silent fall-through to a permissive default.
+func PolicyByName(name string) (Policy, error) {
+	if name == "" {
+		name = DefaultPolicyName
+	}
+	p, ok := BuiltinPolicies[name]
+	if !ok {
+		names := make([]string, 0, len(BuiltinPolicies))
+		for n := range BuiltinPolicies {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		return Policy{}, fmt.Errorf("unknown policy %q: choose one of %s", name, strings.Join(names, ", "))
+	}
+	return p, nil
 }
 
 // helper: estimate remediation effort

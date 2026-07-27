@@ -72,6 +72,21 @@ func (s *Server) aud(action, target, detail string, err error) {
 // k8s returns the Client for the currently active context.
 func (s *Server) k8s() *k8s.Client { return s.Mgr.Client() }
 
+// rbacValidator returns the RBAC validator to answer this request with. An
+// injected validator wins (tests set one); otherwise it is built from the
+// active context, so switching clusters re-checks permissions against the new
+// one rather than reporting the previous cluster's answers.
+func (s *Server) rbacValidator() *rbac.Validator {
+	if s.RBACValidator != nil {
+		return s.RBACValidator
+	}
+	cl := s.k8s()
+	if cl == nil {
+		return nil
+	}
+	return rbac.NewValidator(cl.Clientset())
+}
+
 // Routes builds the HTTP handler with all routes registered.
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
@@ -161,6 +176,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/security/scan", s.handleScanImage)                  // POST {imageRef} / GET {imageRef}
 	mux.HandleFunc("/api/security/scans", s.handleListScans)                 // GET paginated
 	mux.HandleFunc("/api/security/compliance", s.handleCheckCompliance)      // POST {imageRef, policyName}
+
+	// Consolidated compliance report (vulnerabilities + policy + RBAC), and its
+	// exportable renderings for auditors and change tickets.
+	mux.HandleFunc("/api/compliance/report", s.handleComplianceReport) // GET ?namespace=&maxCritical=&maxHigh=
+	mux.HandleFunc("/api/compliance/export", s.handleComplianceExport) // GET ?format=json|csv|md|html
 
 	// RBAC Compliance
 	mux.HandleFunc("/api/rbac/compliance", s.handleRBACCompliance) // GET
