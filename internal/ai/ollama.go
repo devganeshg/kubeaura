@@ -173,3 +173,7 @@ func (p *ollamaProvider) CompleteStream(ctx context.Context, system, user string
 	}
 	return strings.TrimSpace(sb.String()), nil
 }
+
+// Endpoint reports the Ollama server address, so the evidence envelope can say
+// whether the model runs on this machine.
+func (p *ollamaProvider) Endpoint() string { return p.host }

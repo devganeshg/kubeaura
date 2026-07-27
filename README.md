@@ -655,13 +655,53 @@ below follows from that.
   config file has no field for them, and `apiKeyCommand` fetches from your
   keychain at startup rather than storing anything.
 - **Data leaves your machine only if you choose a hosted model.** With Ollama or
-  a local OpenAI-compatible server, the AI runs entirely on your machine. The
-  Assistant sends a compact cluster snapshot (and, for troubleshooting, a pod's
-  spec/events/logs) to whichever model backend you configured.
+  a local OpenAI-compatible server, the AI runs entirely on your machine. When
+  the backend is hosted, every call is redacted, capped, and previewed first —
+  see [The evidence envelope](#the-evidence-envelope).
 - **One outbound asset.** The topology "galaxy" view lazy-loads
   [3d-force-graph](https://github.com/vasturiano/3d-force-graph) from a CDN on
   first use; every other asset is embedded. That view is the only part of the
   UI that will not work air-gapped.
+
+### The evidence envelope
+
+The Assistant is the one part of KubeAura that can send cluster state to a third
+party. Pod specs, events, and logs routinely contain inline environment values,
+internal hostnames, customer identifiers, and credentials an application printed
+itself. Disclosing that in a README is not the same as controlling it, so the
+boundary is enforced in code and shown in the UI.
+
+Before any troubleshoot or log-summary call, KubeAura builds an **evidence
+envelope**: the redacted payload plus a description of it. If the model runs off
+your machine, the envelope is shown for approval before anything is sent. If the
+model is local, it is shown alongside the answer instead.
+
+What is removed, always, by rule rather than by guessing whether a value "looks
+secret":
+
+| Rule                 | Effect                                                                             |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `env-value`          | Every inline `env[].value` is dropped. The **name** is kept.                        |
+| `annotation-dropped` | `last-applied-configuration` (a verbatim copy of your manifest) and any annotation key matching token/secret/password/credential/apikey. |
+| `log-byte-cap`       | Logs are capped at **32 KiB**, keeping the newest lines.                            |
+| `event-cap`          | Events are capped at **40 events / 16 KiB**, newest first.                          |
+| `log-scrubbed`       | Private keys, JWTs, `Authorization:` headers, bearer tokens, AWS/GitHub/Slack tokens, URL credentials, and `KEY=value` credential pairs are replaced in log and event text. |
+
+Secret and ConfigMap **contents are never read** — not here, not anywhere in
+KubeAura. Secret *references* survive, because a name is not a body and a
+diagnosis often turns on one ("the pod reads `DATABASE_URL` from `app-secrets`,
+which does not exist").
+
+The envelope reports the resource kind/namespace/name/UID, the fields included,
+every rule that fired with its count and byte total, the log window, the exact
+number of bytes leaving the machine, the destination backend, and a **SHA-256 of
+the payload**. That hash is written to the audit trail next to the diagnosis, so
+you can tie a conclusion back to its inputs without keeping the inputs anywhere.
+
+The structured rules carry a guarantee: the payload is built from an explicit
+allow-list, so a new field in a future client-go cannot start being transmitted
+silently. The regex scrubbers over free text are heuristics — they reduce
+exposure in unstructured log output, they do not eliminate it.
 
 Sharing an instance with a team changes the threat model completely — see
 [Run a shared instance in-cluster](#run-a-shared-instance-in-cluster-optional).
