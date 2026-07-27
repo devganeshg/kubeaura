@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/devganeshg/kubeaura/internal/k8s"
@@ -172,30 +173,62 @@ func TestTriggerPipelineHandler_BadPayload(t *testing.T) {
 	}
 }
 
-func TestCheckComplianceHandler(t *testing.T) {
-	server := &Server{
-		Version: "test",
-	}
+// The compliance check must refuse a policy it does not know rather than fall
+// through to a default: a verdict issued under the wrong bar is worse than no
+// verdict, and "production" is exactly the name someone would guess.
+func TestCheckComplianceRejectsUnknownPolicy(t *testing.T) {
+	server := &Server{Version: "test"}
 
-	body := map[string]string{
+	bodyBytes, _ := json.Marshal(map[string]string{
 		"imageRef":   "myapp:latest",
-		"policyName": "production",
-	}
-	bodyBytes, _ := json.Marshal(body)
-
+		"policyName": "production", // not a built-in name
+	})
 	req := httptest.NewRequest("POST", "/api/security/compliance", bytes.NewReader(bodyBytes))
 	w := httptest.NewRecorder()
 
 	server.handleCheckCompliance(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an unknown policy, got %d", w.Code)
 	}
+	var result map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode error body: %v", err)
+	}
+	// The error has to name the valid choices, or the caller cannot recover.
+	if !strings.Contains(result["error"], "strict-production") {
+		t.Errorf("error does not list the valid policies: %q", result["error"])
+	}
+}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &result); err == nil {
-		if compliant, ok := result["compliant"].(bool); ok {
-			t.Logf("Compliance check result: %v", compliant)
+func TestCheckComplianceRequiresImageRef(t *testing.T) {
+	server := &Server{Version: "test"}
+	bodyBytes, _ := json.Marshal(map[string]string{"policyName": "strict-production"})
+	req := httptest.NewRequest("POST", "/api/security/compliance", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	server.handleCheckCompliance(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 without an imageRef, got %d", w.Code)
+	}
+}
+
+func TestImageMatches(t *testing.T) {
+	cases := []struct {
+		report, want string
+		match        bool
+	}{
+		{"docker.io/library/nginx:1.25", "docker.io/library/nginx:1.25", true},
+		{"docker.io/library/nginx:1.25", "nginx:1.25", true},    // operator typed the short form
+		{"nginx:1.25", "docker.io/library/nginx:1.25", true},    // report stored the short form
+		{"docker.io/library/mynginx:1.25", "nginx:1.25", false}, // suffix, but not on a path boundary
+		{"docker.io/library/nginx:1.25", "nginx:1.24", false},   // different tag
+		{"docker.io/library/nginx:1.25", "redis:7", false},
+	}
+	for _, c := range cases {
+		if got := imageMatches(c.report, c.want); got != c.match {
+			t.Errorf("imageMatches(%q, %q) = %v, want %v", c.report, c.want, got, c.match)
 		}
 	}
 }

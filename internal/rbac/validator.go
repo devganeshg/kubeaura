@@ -4,6 +4,8 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	authorizationv1 "k8s.io/api/authorization/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -154,24 +156,52 @@ func (v *Validator) GenerateComplianceReport(ctx context.Context, saName, namesp
 	return report, nil
 }
 
-// helper: generate suggested RBAC rules
+// suggestRBACFixes turns the denied checks into PolicyRule YAML the operator
+// can paste into a Role. The group and the resource are kept apart — emitting
+// the joined "group.resource" as both apiGroups and resources produced rules
+// that never matched anything.
 func suggestRBACFixes(report *ComplianceReport) []string {
-	fixes := make([]string, 0)
-	deniedPerms := make(map[string][]string) // resource -> verbs
+	type key struct{ group, resource string }
+	denied := make(map[key][]string) // group+resource -> verbs
+	seen := make(map[string]bool)    // dedupe the same verb reached via two features
 
 	for _, perm := range report.Permissions {
-		if !perm.IsAllowed {
-			key := fmt.Sprintf("%s.%s", perm.APIGroup, perm.Resource)
-			deniedPerms[key] = append(deniedPerms[key], perm.Verb)
+		if perm.IsAllowed {
+			continue
 		}
+		k := key{perm.APIGroup, perm.Resource}
+		dedupe := perm.APIGroup + "/" + perm.Resource + "/" + perm.Verb
+		if seen[dedupe] {
+			continue
+		}
+		seen[dedupe] = true
+		denied[k] = append(denied[k], perm.Verb)
 	}
 
-	for resource, verbs := range deniedPerms {
-		rule := fmt.Sprintf("- apiGroups: [\"%s\"]\n  resources: [\"%s\"]\n  verbs: %v",
-			resource, resource, verbs)
-		fixes = append(fixes, rule)
+	// Sort so the same gaps always produce the same YAML — a fix block that
+	// reshuffles between runs is not something an operator can diff.
+	keys := make([]key, 0, len(denied))
+	for k := range denied {
+		keys = append(keys, k)
 	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].group == keys[j].group {
+			return keys[i].resource < keys[j].resource
+		}
+		return keys[i].group < keys[j].group
+	})
 
+	fixes := make([]string, 0, len(keys))
+	for _, k := range keys {
+		verbs := denied[k]
+		sort.Strings(verbs)
+		quoted := make([]string, len(verbs))
+		for i, v := range verbs {
+			quoted[i] = fmt.Sprintf("%q", v)
+		}
+		fixes = append(fixes, fmt.Sprintf("- apiGroups: [%q]\n  resources: [%q]\n  verbs: [%s]",
+			k.group, k.resource, strings.Join(quoted, ", ")))
+	}
 	return fixes
 }
 

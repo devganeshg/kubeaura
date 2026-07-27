@@ -41,6 +41,10 @@ type Client struct {
 	pf   map[string]*PortForward // active port-forwards, keyed by id
 }
 
+// Clientset exposes the underlying typed client so sibling packages (the RBAC
+// validator) can run their own API calls against the active context.
+func (c *Client) Clientset() kubernetes.Interface { return c.cs }
+
 // New builds a Client for the kubeconfig's current context, falling back to
 // in-cluster config and then to the default ~/.kube/config location.
 func New(kubeconfig string) (*Client, error) {

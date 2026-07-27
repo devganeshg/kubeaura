@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/devganeshg/kubeaura/internal/rbac"
+	"github.com/devganeshg/kubeaura/internal/security"
 )
 
 // --- CI/CD Handlers ---
@@ -258,14 +260,85 @@ func (s *Server) handleCheckCompliance(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, errString("imageRef is required"))
 		return
 	}
-	// TODO: Load policy and check image scan results against it
+	policy, err := security.PolicyByName(body.PolicyName)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// The findings come from the Trivy Operator reports already in the cluster.
+	// When no report covers this image the answer is "unknown", never
+	// "compliant" — a green verdict on an unscanned image is worse than no
+	// verdict at all.
+	vulns, err := s.k8s().VulnerabilityReports(r.Context(), "")
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	if !vulns.Installed {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"imageRef":   body.ImageRef,
+			"policyName": policy.Name,
+			"checked":    false,
+			"reason":     "no Trivy Operator VulnerabilityReports found in this cluster, so the image has not been scanned",
+			"checkedAt":  time.Now(),
+		})
+		return
+	}
+
+	var scan security.ImageScan
+	scan.ImageName = body.ImageRef
+	matched := 0
+	for _, rep := range vulns.Reports {
+		if !imageMatches(rep.Image, body.ImageRef) {
+			continue
+		}
+		matched++
+		scan.Summary.CriticalCVEs += int(rep.Critical)
+		scan.Summary.HighCVEs += int(rep.High)
+		scan.Summary.MediumCVEs += int(rep.Medium)
+		scan.Summary.LowCVEs += int(rep.Low)
+	}
+	if matched == 0 {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"imageRef":   body.ImageRef,
+			"policyName": policy.Name,
+			"checked":    false,
+			"reason":     "no VulnerabilityReport covers this image; it is not running in this cluster or has not been scanned yet",
+			"checkedAt":  time.Now(),
+		})
+		return
+	}
+	scan.Summary.TotalCVEs = scan.Summary.CriticalCVEs + scan.Summary.HighCVEs +
+		scan.Summary.MediumCVEs + scan.Summary.LowCVEs
+	scan.Status = "completed"
+
+	compliant, violations := security.CheckCompliance(&scan, policy)
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"imageRef":   body.ImageRef,
-		"policyName": body.PolicyName,
-		"compliant":  true,
-		"violations": []string{},
+		"policyName": policy.Name,
+		"policy":     policy,
+		"checked":    true,
+		"reports":    matched,
+		"compliant":  compliant,
+		"violations": violations,
+		"summary":    scan.Summary,
 		"checkedAt":  time.Now(),
 	})
+}
+
+// imageMatches reports whether a VulnerabilityReport's image is the one asked
+// about. An operator may type "nginx:1.25" for an image the report records as
+// "docker.io/library/nginx:1.25", so a suffix match on the tagged reference is
+// accepted — but only on a path boundary, so "mynginx:1.25" does not match.
+func imageMatches(reportImage, want string) bool {
+	if reportImage == want {
+		return true
+	}
+	if strings.HasSuffix(reportImage, "/"+want) {
+		return true
+	}
+	return strings.HasSuffix(want, "/"+reportImage)
 }
 
 // --- RBAC Handlers ---
@@ -275,7 +348,8 @@ func (s *Server) handleRBACCompliance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if s.RBACValidator == nil {
+	v := s.rbacValidator()
+	if v == nil {
 		writeErr(w, http.StatusServiceUnavailable, errString("RBAC validator not initialized"))
 		return
 	}
@@ -288,7 +362,7 @@ func (s *Server) handleRBACCompliance(w http.ResponseWriter, r *http.Request) {
 	if ns == "" {
 		ns = "default"
 	}
-	report, err := s.RBACValidator.GenerateComplianceReport(r.Context(), sa, ns)
+	report, err := v.GenerateComplianceReport(r.Context(), sa, ns)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
@@ -301,10 +375,8 @@ func (s *Server) handleSuggestRole(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if s.RBACValidator == nil {
-		writeErr(w, http.StatusServiceUnavailable, errString("RBAC validator not initialized"))
-		return
-	}
+	// No cluster is consulted here: the suggested Role is derived from
+	// KubeAura's own feature requirements, so this answers without a validator.
 	var body struct {
 		Features []string `json:"features"`
 	}
