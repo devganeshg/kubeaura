@@ -202,3 +202,6 @@ func (p *anthropicProvider) CompleteStream(ctx context.Context, system, user str
 	}
 	return strings.TrimSpace(sb.String()), nil
 }
+
+// Endpoint reports the Anthropic API host. It is always off-machine.
+func (p *anthropicProvider) Endpoint() string { return "https://api.anthropic.com" }

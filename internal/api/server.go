@@ -18,6 +18,7 @@ import (
 	"github.com/devganeshg/kubeaura/internal/ai"
 	"github.com/devganeshg/kubeaura/internal/artifactory"
 	"github.com/devganeshg/kubeaura/internal/dockerfile"
+	"github.com/devganeshg/kubeaura/internal/evidence"
 	"github.com/devganeshg/kubeaura/internal/gitlab"
 	"github.com/devganeshg/kubeaura/internal/k8s"
 	"github.com/devganeshg/kubeaura/internal/rag"
@@ -540,22 +541,75 @@ func (s *Server) handleAILogSummary(w http.ResponseWriter, r *http.Request) {
 		Namespace string `json:"namespace"`
 		Name      string `json:"name"`
 		Container string `json:"container"`
+		// Preview builds the evidence and returns its envelope without calling
+		// the model, so an operator can see what would leave the machine first.
+		Preview bool `json:"preview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	logs, err := s.k8s().PodLogs(body.Namespace, body.Name, body.Container, 400)
+	const linesAsked = 400
+	logs, err := s.k8s().PodLogs(body.Namespace, body.Name, body.Container, linesAsked)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	answer, err := s.AI.SummarizeLogs(r.Context(), logs)
+	payload, err := evidence.ForLogs(evidence.LogInput{
+		Namespace:  body.Namespace,
+		Pod:        body.Name,
+		Container:  body.Container,
+		Logs:       logs,
+		LinesAsked: linesAsked,
+	})
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.describeDestination(&payload.Envelope)
+
+	target := body.Namespace + "/" + body.Name
+	if body.Preview {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"evidence": payload.Envelope})
+		return
+	}
+
+	answer, err := s.AI.SummarizeLogs(r.Context(), payload.JSON)
+	s.aud("ai.logsummary", "Pod/"+target, evidenceDetail(payload.Envelope), err)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"answer": answer})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"answer":   answer,
+		"evidence": payload.Envelope,
+	})
+}
+
+// describeDestination stamps the envelope with the backend that will receive it.
+// This is the half of the disclosure an operator actually acts on: the same
+// evidence is a different decision depending on whether it stays on the machine.
+func (s *Server) describeDestination(env *evidence.Envelope) {
+	if s.AI == nil {
+		return
+	}
+	env.Provider = s.AI.ProviderName()
+	env.Model = s.AI.ModelName()
+	env.Local = s.AI.OnMachine()
+}
+
+// evidenceDetail is the audit-trail line for one model call. It records the
+// hash and the size, never the evidence: the point is that a diagnosis can be
+// tied back to its inputs without keeping those inputs anywhere.
+func evidenceDetail(env evidence.Envelope) string {
+	where := env.Provider
+	if where == "" {
+		where = "unknown backend"
+	}
+	if env.Local {
+		where += " (on this machine)"
+	}
+	return fmt.Sprintf("evidence %s, %d bytes → %s", evidence.Short(env.Hash), env.Bytes, where)
 }
 
 func (s *Server) handleGetYAML(w http.ResponseWriter, r *http.Request) {
@@ -1059,6 +1113,7 @@ func (s *Server) handleAITroubleshoot(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Namespace string `json:"namespace"`
 		Name      string `json:"name"`
+		Preview   bool   `json:"preview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -1069,13 +1124,36 @@ func (s *Server) handleAITroubleshoot(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	dj, _ := json.Marshal(detail)
-	answer, err := s.AI.Troubleshoot(r.Context(), string(dj))
+	// The whole PodDetail used to be marshalled and sent. It carries inline env
+	// values, the last-applied-configuration annotation and uncapped events, so
+	// it now goes through the redaction layer first and nothing else may be sent.
+	payload, err := evidence.ForPod(evidence.PodInput{
+		Pod:      detail.Pod,
+		Events:   detail.Events,
+		Logs:     detail.Logs,
+		LogLines: 100, // what PodDetail asks the API server for
+	})
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.describeDestination(&payload.Envelope)
+
+	if body.Preview {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"evidence": payload.Envelope})
+		return
+	}
+
+	answer, err := s.AI.Troubleshoot(r.Context(), payload.JSON)
+	s.aud("ai.troubleshoot", "Pod/"+body.Namespace+"/"+body.Name, evidenceDetail(payload.Envelope), err)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"answer": answer})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"answer":   answer,
+		"evidence": payload.Envelope,
+	})
 }
 
 func (s *Server) handleAIGenerate(w http.ResponseWriter, r *http.Request) {

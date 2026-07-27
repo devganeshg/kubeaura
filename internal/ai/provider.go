@@ -27,6 +27,15 @@ type Provider interface {
 	Model() string
 }
 
+// endpointProvider is an optional Provider extension that reports where the
+// backend lives. The evidence envelope uses it to tell an operator whether a
+// call leaves the machine, which is the one thing they cannot infer from the
+// provider label alone: an OpenAI-compatible provider may be OpenAI itself or
+// an LM Studio server on localhost.
+type endpointProvider interface {
+	Endpoint() string
+}
+
 // StreamingProvider is an optional Provider extension for backends that can
 // deliver output incrementally. onDelta is called from the request goroutine
 // with each text chunk as it arrives; the full assembled text is returned at

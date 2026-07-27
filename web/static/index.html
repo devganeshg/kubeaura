@@ -397,6 +397,22 @@
         letter-spacing: 0.5px;
         text-transform: none;
       }
+      /* A pill that has to carry a verdict: green when nothing leaves the
+         machine, amber when it does. */
+      .pill.ok {
+        color: var(--ok, #10b981);
+        background: rgba(16, 185, 129, 0.1);
+      }
+      .pill.warn {
+        color: var(--warn, #f59e0b);
+        background: rgba(245, 158, 11, 0.12);
+      }
+      /* Secondary label text, used for field names in the evidence envelope. */
+      .mut {
+        color: var(--muted);
+        font-size: 12px;
+        margin-right: 6px;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -8229,17 +8245,28 @@
           return;
         }
         const el = $("#log-ai");
-        el.innerHTML = `<div class="chart-card" style="margin-bottom:10px"><div class="empty"><span class="spin"></span> Summarizing logs…</div></div>`;
+        el.innerHTML = `<div class="chart-card" style="margin-bottom:10px"><div class="empty"><span class="spin"></span> Preparing evidence…</div></div>`;
+        const req = {
+          namespace: detail.ns,
+          name: detail.name,
+          container: detail.container || "",
+        };
         try {
+          const env = await evidenceApprove("/api/ai/logsummary", req, (html) => {
+            el.innerHTML = html;
+          });
+          if (!env) {
+            el.innerHTML = "";
+            return;
+          }
+          el.innerHTML = `<div class="chart-card" style="margin-bottom:10px"><div class="empty"><span class="spin"></span> Summarizing logs…</div></div>`;
           const j = await api("/api/ai/logsummary", {
             method: "POST",
-            body: JSON.stringify({
-              namespace: detail.ns,
-              name: detail.name,
-              container: detail.container || "",
-            }),
+            body: JSON.stringify(req),
           });
-          el.innerHTML = `<div class="chart-card" style="margin-bottom:10px"><h3>🧠 Log Summary</h3><div style="line-height:1.6">${mdToHtml(j.answer)}</div></div>`;
+          el.innerHTML =
+            `<div class="chart-card" style="margin-bottom:10px"><h3>🧠 Log Summary</h3><div style="line-height:1.6">${mdToHtml(j.answer)}</div>` +
+            `<details style="margin-top:12px"><summary class="mut">Evidence used · sha256 ${esc(((j.evidence || {}).hash || "").slice(0, 12))}</summary>${evidenceCard(j.evidence || env)}</details></div>`;
         } catch (e) {
           el.innerHTML = `<div class="chart-card" style="margin-bottom:10px"><div class="empty">⚠️ ${esc(e.message)}</div></div>`;
         }
@@ -8554,6 +8581,118 @@
           $("#gen-out").innerHTML = `⚠️ ${esc(e.message)}`;
         }
       }
+      // --- Evidence envelope -------------------------------------------------
+      // The assistant is the one part of KubeAura that can send cluster state to
+      // a third party. Every such call is previewed first: the operator sees the
+      // resource, what was redacted, the log window, the byte count and the hash
+      // before anything leaves the machine. When the model runs locally the
+      // preview is shown alongside the answer instead of gating it — there is no
+      // boundary to cross, and a confirmation nobody needs is a confirmation
+      // nobody reads.
+      function evidenceBytes(n) {
+        if (n < 1024) return n + " B";
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KiB";
+        return (n / 1048576).toFixed(1) + " MiB";
+      }
+      function evidenceCard(env, opts) {
+        opts = opts || {};
+        const r = env.resource || {};
+        const rows = [];
+        rows.push(
+          `<div><span class="mut">Resource</span> <span class="mono">${esc(r.kind || "")}/${esc(r.namespace || "")}/${esc(r.name || "")}</span></div>`,
+        );
+        if (r.uid)
+          rows.push(
+            `<div><span class="mut">UID</span> <span class="mono">${esc(r.uid)}</span></div>`,
+          );
+        rows.push(
+          `<div><span class="mut">Fields</span> ${(env.fields || []).map((f) => `<span class="pill">${esc(f)}</span>`).join(" ")}</div>`,
+        );
+        if (env.logWindow) {
+          const w = env.logWindow;
+          const bits = [
+            `${w.linesSent} of ${w.linesAsked} lines`,
+            evidenceBytes(w.bytes),
+          ];
+          if (w.container) bits.unshift(esc(w.container));
+          if (w.truncated) bits.push("older lines dropped by the 32 KiB cap");
+          if (w.scrubbedHits)
+            bits.push(`${w.scrubbedHits} secret-shaped strings scrubbed`);
+          rows.push(
+            `<div><span class="mut">Log window</span> ${esc(bits.join(" · "))}</div>`,
+          );
+        }
+        if (env.events)
+          rows.push(`<div><span class="mut">Events</span> ${env.events}</div>`);
+
+        let red = `<div class="mut" style="margin-top:8px">Nothing matched a redaction rule.</div>`;
+        if ((env.redactions || []).length) {
+          red =
+            `<div style="margin-top:8px"><span class="mut">Removed before sending</span></div>` +
+            `<table style="width:100%;margin-top:4px"><thead><tr><th>Rule</th><th>Where</th><th style="text-align:right">Count</th><th style="text-align:right">Bytes</th></tr></thead><tbody>` +
+            env.redactions
+              .map(
+                (x) =>
+                  `<tr><td class="mono">${esc(x.rule)}</td><td class="mono mut">${esc(x.path)}</td><td style="text-align:right">${x.count}</td><td style="text-align:right">${x.bytes}</td></tr>`,
+              )
+              .join("") +
+            `</tbody></table>`;
+        }
+
+        const dest = env.local
+          ? `<span class="pill ok">stays on this machine</span> ${esc(env.provider || "")}`
+          : `<span class="pill warn">leaves this machine</span> ${esc(env.provider || "no backend")}${env.model ? " · " + esc(env.model) : ""}`;
+
+        const foot = opts.buttons
+          ? `<div style="margin-top:12px;display:flex;gap:8px">
+               <button class="btn" onclick="evidenceSend()">Send ${evidenceBytes(env.bytes)} to ${esc(env.provider || "the model")}</button>
+               <button class="btn ghost" onclick="evidenceCancel()">Cancel</button>
+             </div>`
+          : "";
+
+        return `<div class="chart-card">
+            <h3>📦 Evidence envelope</h3>
+            <div style="margin-bottom:6px">${dest}</div>
+            ${rows.join("")}
+            ${red}
+            <div style="margin-top:8px"><span class="mut">Payload</span> ${evidenceBytes(env.bytes)} · <span class="mut">sha256</span> <span class="mono">${esc((env.hash || "").slice(0, 12))}</span></div>
+            <div class="mut" style="margin-top:6px;font-size:12px">Secret and ConfigMap contents are never read. Inline environment values are always removed; their names and references are kept. The hash is recorded in the audit trail with the answer.</div>
+            ${foot}
+          </div>`;
+      }
+
+      // Decision slot for the preview an operator is currently looking at.
+      let evidencePending = null;
+      function evidenceSettle(ok) {
+        const resolve = evidencePending;
+        evidencePending = null;
+        if (resolve) resolve(ok);
+      }
+      function evidenceSend() {
+        evidenceSettle(true);
+      }
+      function evidenceCancel() {
+        evidenceSettle(false);
+      }
+
+      // evidenceApprove previews the call and resolves true when it may proceed.
+      // A local backend is approved without asking; anything else waits for the
+      // operator. Returns the envelope too, so the caller can show it with the
+      // answer.
+      async function evidenceApprove(url, body, render) {
+        const p = await api(url, {
+          method: "POST",
+          body: JSON.stringify(Object.assign({}, body, { preview: true })),
+        });
+        const env = p.evidence;
+        if (env.local) return env;
+        render(evidenceCard(env, { buttons: true }));
+        const ok = await new Promise((resolve) => {
+          evidencePending = resolve;
+        });
+        return ok ? env : null;
+      }
+
       async function aiTroubleshoot(ns, name) {
         if (!state.aiEnabled) {
           toast(
@@ -8563,16 +8702,32 @@
         }
         openModal(
           `✨ Diagnosing ${name}`,
-          `<div class="empty"><span class="spin"></span> Analyzing logs, events & config…</div>`,
+          `<div class="empty"><span class="spin"></span> Preparing evidence…</div>`,
           "",
+          "big",
         );
         try {
+          const env = await evidenceApprove(
+            "/api/ai/troubleshoot",
+            { namespace: ns, name },
+            (html) => {
+              $("#modal-body").innerHTML = html;
+              $("#modal-foot").innerHTML = "";
+            },
+          );
+          if (!env) {
+            closeModal();
+            return;
+          }
+          $("#modal-body").innerHTML =
+            `<div class="empty"><span class="spin"></span> Analyzing logs, events & config…</div>`;
           const j = await api("/api/ai/troubleshoot", {
             method: "POST",
             body: JSON.stringify({ namespace: ns, name }),
           });
           $("#modal-body").innerHTML =
-            `<div style="line-height:1.6">${mdToHtml(j.answer)}</div>`;
+            `<div style="line-height:1.6">${mdToHtml(j.answer)}</div>` +
+            `<details style="margin-top:14px"><summary class="mut">Evidence used · sha256 ${esc(((j.evidence || {}).hash || "").slice(0, 12))}</summary>${evidenceCard(j.evidence || env)}</details>`;
           $("#modal-foot").innerHTML =
             `<button class="btn ghost" onclick="closeModal()">Close</button>`;
         } catch (e) {

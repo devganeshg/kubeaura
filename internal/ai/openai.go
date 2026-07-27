@@ -200,3 +200,7 @@ func (p *openaiProvider) CompleteStream(ctx context.Context, system, user string
 	}
 	return strings.TrimSpace(sb.String()), nil
 }
+
+// Endpoint reports the configured base URL. For this provider it is the only
+// way to tell a hosted backend from a local one.
+func (p *openaiProvider) Endpoint() string { return p.baseURL }

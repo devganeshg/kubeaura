@@ -3,6 +3,8 @@ package ai
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 	"sync"
 )
@@ -212,6 +214,39 @@ func (c *Assistant) ModelName() string {
 		return p.Model()
 	}
 	return ""
+}
+
+// Endpoint returns the active backend's address, or "" when it does not report
+// one.
+func (c *Assistant) Endpoint() string {
+	if p, ok := c.activeProvider().(endpointProvider); ok {
+		return p.Endpoint()
+	}
+	return ""
+}
+
+// OnMachine reports whether the active model runs on this machine, i.e. whether
+// a call keeps cluster data local. Anything that is not a loopback address is
+// treated as off-machine: a model on the LAN is still somewhere else, and the
+// envelope should say so rather than flatter the setup.
+func (c *Assistant) OnMachine() bool {
+	ep := c.Endpoint()
+	if ep == "" {
+		return false
+	}
+	u, err := url.Parse(ep)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if host == "" {
+		host = ep
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // complete delegates to the active provider.
