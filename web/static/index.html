@@ -496,6 +496,26 @@
       .btn.ghost {
         background: var(--panel2);
       }
+      /* Form field used by the dialogs (Helm install, rollback). */
+      .inp {
+        width: 100%;
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 11px;
+        font-size: 13px;
+        outline: none;
+      }
+      .inp:focus {
+        border-color: var(--accent);
+      }
+      .inp.mono {
+        font-family: var(--mono);
+      }
+      textarea.inp {
+        resize: vertical;
+      }
       .empty {
         color: var(--muted);
         text-align: center;
@@ -4016,6 +4036,7 @@
         pvcs: "PVCs",
         clusterissuers: "ClusterIssuers",
         helmreleases: "HelmReleases",
+        helm: "Helm",
       };
       let state = {
         kind: "dashboard",
@@ -4071,7 +4092,7 @@
           byName["Config"],
           byName["Cluster"],
           byName["Access"],
-          { group: "Operate", items: ["forwards", "audit"] },
+          { group: "Operate", items: ["helm", "forwards", "audit"] },
         ].filter(Boolean);
       };
       let navOpen = (() => {
@@ -4183,6 +4204,8 @@
           '<path d="M22 18H2a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4Z"/><path d="M21 14 10 2 3 14h18Z"/><path d="M10 2v16"/>',
         _default: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1"/>',
       };
+      ICONS.helm =
+        '<path d="M12 2 4 6v6c0 4.4 3.4 8.4 8 10 4.6-1.6 8-5.6 8-10V6z"/><path d="M10 8v8"/><path d="M14 8v8"/><path d="M10 12h4"/>';
       ICONS.clusterroles = ICONS.roles;
       ICONS.clusterrolebindings = ICONS.rolebindings;
       function icon(k) {
@@ -4246,6 +4269,7 @@
           if (state.kind === "alerts") return renderAlerts();
           if (state.kind === "topology") return renderTopology();
           if (state.kind === "quotas") return renderQuotas();
+          if (state.kind === "helm") return renderHelm();
           if (state.kind === "security") return renderSecurity();
           if (state.kind === "gitops") return renderGitOps();
           if (state.kind === "policy") return renderPolicy();
@@ -6455,6 +6479,241 @@
       }
 
       // ---------- Audit trail ----------
+      // ---------- Helm ----------
+      // Reads decode Helm's own storage secrets, so the release list, values,
+      // manifest and history work with no helm binary present. The lifecycle
+      // actions shell out to helm and are hidden entirely when it is missing.
+      let helmState = { cli: false, cliVersion: "", releases: [] };
+      async function renderHelm() {
+        $("#main").innerHTML = `<h2>Helm <span class="pill">${esc(state.ns || "all namespaces")}</span>
+      <span id="helm-cli" style="margin-left:auto"></span></h2>
+    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">Releases decoded from Helm's own storage secrets — no Tiller, no agent, nothing installed in your cluster.</div>
+    <div id="helm-body"><div class="empty"><span class="spin"></span></div></div>`;
+        try {
+          const r = await api(`/api/helm/releases?namespace=${state.ns}`);
+          helmState.cli = !!r.cliAvailable;
+          helmState.cliVersion = r.cliVersion || "";
+          helmState.releases = r.releases || [];
+
+          $("#helm-cli").innerHTML = helmState.cli
+            ? `<span class="pill" title="${esc(helmState.cliVersion)}">helm CLI detected</span>
+           <button class="btn" onclick="helmInstallDialog()">＋ Install chart</button>`
+            : `<span class="pill" style="color:var(--muted)" title="Install Helm to enable install, upgrade, rollback and uninstall">read-only — no helm binary on PATH</span>`;
+
+          if (!helmState.releases.length) {
+            $("#helm-body").innerHTML =
+              `<div class="empty">⎈ No Helm releases in this scope.</div>`;
+            return;
+          }
+          let h = `<table><thead><tr><th>Release</th><th>Namespace</th><th>Status</th><th>Chart</th><th>App version</th><th>Rev</th><th>Updated</th><th></th></tr></thead><tbody>`;
+          helmState.releases.forEach((rel, i) => {
+            const c = STATUS_COLOR[rel.status] || "var(--text)";
+            h += `<tr class="clickable" onclick="helmOpen(${i})">
+          <td class="mono">${esc(rel.name)}</td>
+          <td class="mono" style="color:var(--muted)">${esc(rel.namespace)}</td>
+          <td style="color:${c};font-weight:600">${esc(rel.status)}</td>
+          <td class="mono">${esc(rel.chart)}</td>
+          <td class="mono" style="color:var(--muted)">${esc(rel.appVersion || "—")}</td>
+          <td class="mono">${rel.revision}</td>
+          <td class="mono" style="color:var(--muted)">${esc(rel.age || "—")}</td>
+          <td style="text-align:right">${helmRowActions(i)}</td></tr>`;
+          });
+          $("#helm-body").innerHTML = h + `</tbody></table>`;
+        } catch (e) {
+          $("#helm-body").innerHTML =
+            `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+      function helmRowActions(i) {
+        if (!helmState.cli) return "";
+        // stopPropagation so an action button does not also open the drawer.
+        return `<button class="btn ghost" style="font-size:11px;padding:3px 8px" onclick="event.stopPropagation();helmRollbackDialog(${i})">↩ Rollback</button>
+      <button class="btn ghost" style="font-size:11px;padding:3px 8px" onclick="event.stopPropagation();helmUninstallDialog(${i})">🗑 Uninstall</button>`;
+      }
+
+      async function helmOpen(i) {
+        const rel = helmState.releases[i];
+        if (!rel) return;
+        openModal(
+          `Helm release: ${rel.name}`,
+          `<div class="empty"><span class="spin"></span></div>`,
+          `<button class="btn ghost" onclick="closeModal()">Close</button>`,
+          "big",
+        );
+        try {
+          const d = await api(
+            `/api/helm/release?namespace=${encodeURIComponent(rel.namespace)}&name=${encodeURIComponent(rel.name)}`,
+          );
+          window._helmDetail = d;
+          $("#modal-body").innerHTML = helmDetailHTML(d);
+        } catch (e) {
+          $("#modal-body").innerHTML =
+            `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+      function helmDetailHTML(d) {
+        let h = `<div class="cards" style="margin-bottom:12px">
+      <div class="card"><div class="n">${d.revision}</div><div class="l">Revision</div></div>
+      <div class="card"><div class="n" style="font-size:16px">${esc(d.status)}</div><div class="l">Status</div></div>
+      <div class="card"><div class="n" style="font-size:16px">${esc(d.chartVer || "—")}</div><div class="l">Chart version</div></div>
+      <div class="card"><div class="n" style="font-size:16px">${esc(d.appVersion || "—")}</div><div class="l">App version</div></div>
+    </div>`;
+        if (d.chartDesc)
+          h += `<div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:10px">${esc(d.chartDesc)}</div>`;
+
+        h += `<div class="drawer-tabs" style="margin-bottom:10px">
+      ${["history", "values", "manifest", "resources", "notes"]
+        .map(
+          (t) =>
+            `<button class="btn ghost" style="font-size:12px" onclick="helmTab('${t}')">${t[0].toUpperCase() + t.slice(1)}</button>`,
+        )
+        .join(" ")}</div><div id="helm-tab"></div>`;
+        setTimeout(() => helmTab("history"), 0);
+        return h;
+      }
+      function helmTab(tab) {
+        const d = window._helmDetail;
+        const el = $("#helm-tab");
+        if (!d || !el) return;
+        if (tab === "history") {
+          let h = `<table style="font-size:12px"><thead><tr><th>Rev</th><th>Status</th><th>Chart</th><th>App</th><th>Age</th><th>Description</th><th></th></tr></thead><tbody>`;
+          for (const r of d.history) {
+            const isCurrent = r.revision === d.revision;
+            h += `<tr><td class="mono">${r.revision}${isCurrent ? " ●" : ""}</td>
+          <td class="mono">${esc(r.status)}</td>
+          <td class="mono">${esc(r.chart)}</td>
+          <td class="mono" style="color:var(--muted)">${esc(r.appVersion || "—")}</td>
+          <td class="mono" style="color:var(--muted)">${esc(r.age || "—")}</td>
+          <td style="color:var(--muted)">${esc(r.description || "—")}</td>
+          <td>${isCurrent ? "" : `<button class="btn ghost" style="font-size:11px;padding:2px 7px" onclick="helmShowDiff(${r.revision})">± vs current</button>`}</td></tr>`;
+          }
+          el.innerHTML = h + `</tbody></table><div id="helm-diff"></div>`;
+        } else if (tab === "values") {
+          el.innerHTML = `<div class="sub" style="color:var(--muted);font-size:11px;margin-bottom:4px">Values you supplied</div>
+        <pre class="mono" style="max-height:220px;overflow:auto">${esc(d.userValues)}</pre>
+        <div class="sub" style="color:var(--muted);font-size:11px;margin:10px 0 4px">Chart defaults merged with your overrides</div>
+        <pre class="mono" style="max-height:260px;overflow:auto">${esc(d.allValues)}</pre>`;
+        } else if (tab === "manifest") {
+          el.innerHTML = `<pre class="mono" style="max-height:460px;overflow:auto">${esc(d.manifest)}</pre>`;
+        } else if (tab === "resources") {
+          let h = `<table style="font-size:12px"><thead><tr><th>Kind</th><th>Name</th><th>Namespace</th><th>API version</th></tr></thead><tbody>`;
+          for (const o of d.resources || []) {
+            h += `<tr><td class="mono">${esc(o.kind)}</td><td class="mono">${esc(o.name)}</td>
+          <td class="mono" style="color:var(--muted)">${esc(o.namespace || "—")}</td>
+          <td class="mono" style="color:var(--muted)">${esc(o.apiVersion)}</td></tr>`;
+          }
+          el.innerHTML = h + `</tbody></table>`;
+        } else {
+          el.innerHTML = d.notes
+            ? `<pre class="mono" style="max-height:420px;overflow:auto">${esc(d.notes)}</pre>`
+            : `<div class="empty">This chart recorded no notes.</div>`;
+        }
+      }
+      async function helmShowDiff(from) {
+        const d = window._helmDetail;
+        const t = $("#helm-diff");
+        if (!d || !t) return;
+        t.innerHTML = `<div class="empty"><span class="spin"></span> Comparing manifests…</div>`;
+        try {
+          const j = await api(
+            `/api/helm/diff?namespace=${encodeURIComponent(d.namespace)}&name=${encodeURIComponent(d.name)}&from=${from}&to=${d.revision}`,
+          );
+          t.innerHTML = `<div class="diff"><div class="dh">revision ${j.from} → ${j.to}</div>${diffLines(j.live, j.proposed)}</div>`;
+        } catch (e) {
+          t.innerHTML = `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+
+      // --- Helm lifecycle actions ---
+      function helmInstallDialog() {
+        openModal(
+          "Install a Helm chart",
+          `<label class="sub" style="font-size:12px;color:var(--muted)">Release name</label>
+       <input id="helm-rel" class="inp mono" placeholder="my-release">
+       <label class="sub" style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Chart</label>
+       <input id="helm-chart" class="inp mono" placeholder="bitnami/nginx or oci://registry/chart">
+       <label class="sub" style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Chart version (optional)</label>
+       <input id="helm-ver" class="inp mono" placeholder="latest">
+       <label class="sub" style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Namespace</label>
+       <input id="helm-ns" class="inp mono" value="${esc(state.ns || "default")}">
+       <label class="sub" style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Values (YAML, optional)</label>
+       <textarea id="helm-values" class="inp mono" rows="7" placeholder="replicaCount: 2"></textarea>
+       <label style="font-size:12px;margin-top:8px;display:block"><input type="checkbox" id="helm-createns" checked> Create the namespace if it does not exist</label>
+       <label style="font-size:12px"><input type="checkbox" id="helm-atomic" checked> Roll back automatically if the install fails</label>
+       <div id="helm-out"></div>`,
+          `<button class="btn ghost" onclick="closeModal()">Cancel</button>
+       <button class="btn ghost" onclick="helmRun('install',true)">Dry run</button>
+       <button class="btn" onclick="helmRun('install',false)">Install</button>`,
+          "big",
+        );
+      }
+      function helmRollbackDialog(i) {
+        const rel = helmState.releases[i];
+        if (!rel) return;
+        const prev = rel.revision - 1;
+        openModal(
+          `Roll back ${rel.name}`,
+          `<p>Roll <b>${esc(rel.name)}</b> in <b>${esc(rel.namespace)}</b> back from revision ${rel.revision}.</p>
+       <label class="sub" style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Target revision</label>
+       <input id="helm-rev" class="inp mono" value="${prev > 0 ? prev : 1}">
+       <div class="sub" style="color:var(--muted);font-size:12px;margin-top:8px">This re-applies the target revision's manifest and records a new revision — the history is preserved either way.</div>
+       <div id="helm-out"></div>`,
+          `<button class="btn ghost" onclick="closeModal()">Cancel</button>
+       <button class="btn" onclick="helmRun('rollback',false,${i})">Roll back</button>`,
+        );
+      }
+      function helmUninstallDialog(i) {
+        const rel = helmState.releases[i];
+        if (!rel) return;
+        openModal(
+          `Uninstall ${rel.name}`,
+          `<p>This deletes every resource in release <b>${esc(rel.name)}</b> from namespace <b>${esc(rel.namespace)}</b>.</p>
+       <div class="sub" style="color:var(--red);font-size:12px;margin-top:8px">This cannot be undone from here — the release history goes with it.</div>
+       <div id="helm-out"></div>`,
+          `<button class="btn ghost" onclick="closeModal()">Cancel</button>
+       <button class="btn" onclick="helmRun('uninstall',false,${i})">Uninstall</button>`,
+        );
+      }
+      async function helmRun(action, dryRun, i) {
+        const out = $("#helm-out");
+        const rel = i === undefined ? null : helmState.releases[i];
+        const body = { action, dryRun: !!dryRun };
+        if (action === "install") {
+          body.release = ($("#helm-rel").value || "").trim();
+          body.chart = ($("#helm-chart").value || "").trim();
+          body.version = ($("#helm-ver").value || "").trim();
+          body.namespace = ($("#helm-ns").value || "").trim();
+          body.values = $("#helm-values").value || "";
+          body.createNamespace = $("#helm-createns").checked;
+          body.atomic = $("#helm-atomic").checked;
+          if (!body.release || !body.chart) {
+            out.innerHTML = `<div class="empty">A release name and a chart are both required.</div>`;
+            return;
+          }
+        } else {
+          body.release = rel.name;
+          body.namespace = rel.namespace;
+          if (action === "rollback")
+            body.revision = parseInt($("#helm-rev").value || "0", 10) || 0;
+        }
+        out.innerHTML = `<div class="empty"><span class="spin"></span> Running helm ${esc(action)}…</div>`;
+        try {
+          const j = await api("/api/helm/action", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          out.innerHTML = `<div class="sub" style="color:var(--muted);font-size:11px;margin-top:8px">${esc(j.command)}</div>
+        <pre class="mono" style="max-height:260px;overflow:auto">${esc(j.output || "(no output)")}</pre>`;
+          if (!dryRun) {
+            toast(`helm ${action} succeeded`);
+            closeModal();
+            renderHelm();
+          }
+        } catch (e) {
+          out.innerHTML = `<div class="empty" style="color:var(--red)">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+
       async function renderAudit() {
         $("#main").innerHTML =
           `<h2>Audit Trail <span class="pill">write actions this session</span></h2>

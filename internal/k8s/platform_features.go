@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -134,46 +133,31 @@ func certManagerInfo(kind string, it unstructured.Unstructured) string {
 	}
 }
 
+// listHelmReleases backs the HelmRelease resource kind. It decodes the release
+// payloads (see helm.go) rather than reading the storage secrets' labels, so
+// the table shows the chart and app version Helm actually recorded and lists
+// one row per release instead of one per revision.
 func (c *Client) listHelmReleases(cx context.Context, namespace string, opts metav1.ListOptions) (ListResult, error) {
-	list, err := c.cs.CoreV1().Secrets(namespace).List(cx, opts)
+	res, err := c.HelmReleases(cx, namespace)
 	if err != nil {
 		return ListResult{}, err
 	}
-	rows := make([]Resource, 0, len(list.Items))
-	for _, s := range list.Items {
-		if s.Labels["owner"] != "helm" && !strings.HasPrefix(string(s.Type), "helm.sh/release.v1") {
-			continue
-		}
-		releaseName := s.Labels["name"]
-		if releaseName == "" {
-			releaseName = helmNameFromSecret(s.Name)
-		}
-		rev := s.Labels["version"]
-		status := strings.Title(strings.ToLower(s.Labels["status"]))
-		if status == "" {
-			status = "Unknown"
-		}
-		info := "revision=" + rev
-		if rev == "" {
-			info = "helm release metadata"
+	rows := make([]Resource, 0, len(res.Releases))
+	for _, r := range res.Releases {
+		info := fmt.Sprintf("chart=%s, rev=%d", r.Chart, r.Revision)
+		if r.AppVersion != "" {
+			info += ", app=" + r.AppVersion
 		}
 		rows = append(rows, Resource{
 			Kind:      "HelmRelease",
-			Name:      releaseName,
-			Namespace: s.Namespace,
-			Status:    status,
+			Name:      r.Name,
+			Namespace: r.Namespace,
+			Status:    r.Status,
 			Info:      info,
-			Age:       age(s.CreationTimestamp),
-			Labels:    s.Labels,
+			Age:       r.Age,
 		})
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].Namespace == rows[j].Namespace {
-			return rows[i].Name < rows[j].Name
-		}
-		return rows[i].Namespace < rows[j].Namespace
-	})
-	return ListResult{Items: rows, Continue: list.Continue}, nil
+	return ListResult{Items: rows}, nil
 }
 
 func helmNameFromSecret(secretName string) string {
@@ -277,60 +261,63 @@ func (c *Client) deleteCertManagerClusterResource(cx context.Context, resource, 
 	return dyn.Resource(gvr).Delete(cx, name, metav1.DeleteOptions{})
 }
 
+// helmReleaseDetail renders the drawer for one release from its decoded
+// storage, so the operator sees the chart, the values they supplied and the
+// objects the release owns rather than a list of secret names.
 func (c *Client) helmReleaseDetail(cx context.Context, namespace, name string) (*DetailView, error) {
-	secrets, err := c.cs.CoreV1().Secrets(namespace).List(cx, metav1.ListOptions{})
+	d, err := c.HelmReleaseDetail(cx, namespace, name, 0)
 	if err != nil {
 		return nil, err
 	}
-	var rows [][]string
-	status := "Unknown"
-	var created metav1.Time
-	for _, s := range secrets.Items {
-		if s.Labels["owner"] != "helm" && !strings.HasPrefix(string(s.Type), "helm.sh/release.v1") {
-			continue
-		}
-		relName := s.Labels["name"]
-		if relName == "" {
-			relName = helmNameFromSecret(s.Name)
-		}
-		if relName != name {
-			continue
-		}
-		rev := s.Labels["version"]
-		st := strings.Title(strings.ToLower(s.Labels["status"]))
-		if st != "" {
-			status = st
-		}
-		if created.IsZero() || s.CreationTimestamp.Time.Before(created.Time) {
-			created = s.CreationTimestamp
-		}
-		rows = append(rows, []string{rev, st, s.Name, age(s.CreationTimestamp)})
+
+	fields := []Field{
+		{Key: "Release", Value: d.Name},
+		{Key: "Namespace", Value: d.Namespace},
+		{Key: "Status", Value: d.Status},
+		{Key: "Revision", Value: fmt.Sprint(d.Revision)},
+		{Key: "Chart", Value: d.Chart},
 	}
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("helm release %q not found in namespace %q", name, namespace)
+	if d.AppVersion != "" {
+		fields = append(fields, Field{Key: "App Version", Value: d.AppVersion})
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i][0] > rows[j][0]
-	})
+	if d.Description != "" {
+		fields = append(fields, Field{Key: "Description", Value: d.Description})
+	}
+	if d.Updated != "" {
+		fields = append(fields, Field{Key: "Last Deployed", Value: d.Updated})
+	}
+	if d.ChartHome != "" {
+		fields = append(fields, Field{Key: "Chart Home", Value: d.ChartHome})
+	}
+
+	history := make([][]string, 0, len(d.History))
+	for _, h := range d.History {
+		history = append(history, []string{fmt.Sprint(h.Revision), h.Status, h.Chart, h.AppVersion, h.Age, h.Description})
+	}
+	owned := make([][]string, 0, len(d.Resources))
+	for _, o := range d.Resources {
+		owned = append(owned, []string{o.Kind, o.Name, o.Namespace, o.APIVer})
+	}
+
 	v := &DetailView{
 		Kind:      "HelmRelease",
-		Name:      name,
-		Namespace: namespace,
-		Status:    status,
-		Age:       age(created),
-		Sections: []Section{{
-			Title: "Overview",
-			Fields: []Field{
-				{Key: "Release", Value: name},
-				{Key: "Namespace", Value: namespace},
-				{Key: "Status", Value: status},
+		Name:      d.Name,
+		Namespace: d.Namespace,
+		Status:    d.Status,
+		Age:       d.Age,
+		Sections:  []Section{{Title: "Overview", Fields: fields}},
+		Tables: []Table{
+			{
+				Title:   "Revision History",
+				Headers: []string{"Revision", "Status", "Chart", "App Version", "Age", "Description"},
+				Rows:    history,
 			},
-		}},
-		Tables: []Table{{
-			Title:   "Revision History (from Helm storage secrets)",
-			Headers: []string{"Revision", "Status", "Storage Secret", "Age"},
-			Rows:    rows,
-		}},
+			{
+				Title:   "Resources In This Release",
+				Headers: []string{"Kind", "Name", "Namespace", "API Version"},
+				Rows:    owned,
+			},
+		},
 	}
 	return v, nil
 }
