@@ -1,0 +1,60 @@
+name: CodeQL
+
+# Branch protection on main requires code scanning results, so this is the
+# workflow that produces them. It covers both the Go source and the Actions
+# workflows themselves — a compromised workflow is as good as a compromised
+# binary for a tool people install with curl | sh.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # New advisories land against unchanged code, so a quiet week is not the
+    # same as a clean one. Weekly, at an hour nobody is waiting on CI.
+    - cron: "27 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write # upload the SARIF results
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: actions
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Match the toolchain CI builds with, so CodeQL analyzes the same code
+      # the release does rather than whatever Go the runner happens to ship.
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
