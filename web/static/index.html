@@ -2522,6 +2522,79 @@
         grid-template-columns: 236px 1fr;
         grid-template-rows: 60px 1fr 56px;
       }
+      /* --- Collapsible navigation ---------------------------------------
+         Collapsed, the sidebar becomes an icon rail: labels are hidden but
+         every destination stays one click away, so collapsing reclaims width
+         without hiding the app from you. The width lives in a custom property
+         so the grid and the rail can never disagree about it. */
+      .app {
+        --side-w: 236px;
+      }
+      body.nav-collapsed .app {
+        --side-w: 62px;
+      }
+      .app {
+        grid-template-columns: var(--side-w) 1fr;
+        transition: grid-template-columns 0.2s ease;
+      }
+      body.nav-collapsed .sl-name,
+      body.nav-collapsed .side .nl,
+      body.nav-collapsed .side .caret,
+      body.nav-collapsed .vd-head,
+      body.nav-collapsed .vd-wave,
+      body.nav-collapsed .vd-status,
+      body.nav-collapsed .vd-tap,
+      body.nav-collapsed .vd-focus,
+      body.nav-collapsed #nav-alert-count {
+        display: none;
+      }
+      body.nav-collapsed .side-logo,
+      body.nav-collapsed nav button.child,
+      body.nav-collapsed .voice-dock {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      /* A collapsed group header would be an empty row, so it goes; the
+         children stay visible as a flat rail of icons. */
+      body.nav-collapsed nav button.parent {
+        display: none;
+      }
+      body.nav-collapsed .nav-group-body,
+      body.nav-collapsed .nav-group-body:not(.open) {
+        grid-template-rows: 1fr;
+      }
+      body.nav-collapsed .nav-group-body:not(.open) .nav-group-inner {
+        opacity: 1;
+      }
+      /* The rail is narrow enough that a label would be guesswork, so show
+         the real one on hover. */
+      body.nav-collapsed .side nav button.child {
+        position: relative;
+      }
+      body.nav-collapsed .side nav button.child:hover::after {
+        content: attr(data-label);
+        position: absolute;
+        left: calc(100% + 6px);
+        top: 50%;
+        transform: translateY(-50%);
+        white-space: nowrap;
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--glass-border);
+        border-radius: 6px;
+        padding: 4px 9px;
+        font-size: 12px;
+        z-index: 60;
+        pointer-events: none;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      }
+      .nav-toggle svg {
+        transition: transform 0.2s ease;
+      }
+      body.nav-collapsed .nav-toggle svg {
+        transform: rotate(180deg);
+      }
       aside.side {
         grid-column: 1;
         grid-row: 1 / 4;
@@ -2678,6 +2751,46 @@
       .vd-mic:hover {
         transform: scale(1.06);
         box-shadow: 0 0 26px rgba(var(--accent-rgb), 0.55);
+      }
+      /* While voice is running the control is a stop button, and has to read as
+         one at a glance — same position, unmistakably different state. */
+      .vd-mic.stopping,
+      .dk-talk.stopping {
+        border-color: rgba(239, 68, 68, 0.65);
+        color: #ef4444;
+        box-shadow: 0 0 22px rgba(239, 68, 68, 0.45);
+        animation: vd-stop-pulse 1.3s ease-in-out infinite;
+      }
+      .vd-mic.stopping .vd-mic-ring {
+        border-color: rgba(239, 68, 68, 0.5);
+      }
+      /* The glyph itself becomes a stop square, so the meaning does not rest on
+         colour alone. The talk bar carries a text label instead — it has room
+         for one, and words beat a symbol when there is space. */
+      .vd-mic.stopping svg {
+        display: none;
+      }
+      .vd-mic.stopping::after {
+        content: "";
+        width: 15px;
+        height: 15px;
+        border-radius: 3px;
+        background: currentColor;
+      }
+      @keyframes vd-stop-pulse {
+        0%,
+        100% {
+          box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
+        }
+        50% {
+          box-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .vd-mic.stopping,
+        .dk-talk.stopping {
+          animation: none;
+        }
       }
       .vd-mic-ring {
         position: absolute;
@@ -3757,6 +3870,17 @@
         </div>
       </aside>
       <header>
+        <button
+          class="hbtn nav-toggle"
+          id="nav-toggle"
+          onclick="toggleNav()"
+          title="Collapse / expand navigation (⌘B)"
+          aria-label="Toggle navigation"
+          aria-expanded="true"
+          aria-controls="nav"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="m14 9 2 3-2 3"/></svg>
+        </button>
         <div class="sys-chip" id="sys-chip" onclick="go('dashboard')" title="Cluster health">
           <span class="sc-label">System Status</span>
           <span class="sc-dot" id="sys-dot"></span>
@@ -3951,10 +4075,12 @@
             </div>
             <div><kbd>l</kbd> <kbd>y</kbd> <kbd>x</kbd> <kbd>o</kbd></div>
             <div>In a pod drawer: Logs · YAML · Exec · Overview</div>
+            <div><kbd>⌘B</kbd></div>
+            <div>Collapse / expand the navigation sidebar</div>
             <div><kbd>?</kbd></div>
             <div>Toggle this help</div>
             <div><kbd>esc</kbd></div>
-            <div>Close palette / drawer / dialogs</div>
+            <div>Stop the assistant talking · close palette / drawer / dialogs</div>
             <div>🎙</div>
             <div>
               Voice (Chrome/Edge): tap the mic and ask anything —
@@ -4140,16 +4266,40 @@
         $(`#nav button.parent${sel}`)?.classList.toggle("open", open);
         $(`#nav .nav-group-body${sel}`)?.classList.toggle("open", open);
       }
+      // --- Sidebar open/close ------------------------------------------------
+      // Collapsing keeps every destination reachable as an icon rail rather
+      // than hiding the nav outright: on a narrow screen the width matters, but
+      // a menu you cannot see is a menu you stop using. The choice persists.
+      function navCollapsed() {
+        return localStorage.getItem("kp-nav-collapsed") === "1";
+      }
+      function applyNav(collapsed) {
+        document.body.classList.toggle("nav-collapsed", collapsed);
+        const b = $("#nav-toggle");
+        if (b) {
+          b.setAttribute("aria-expanded", collapsed ? "false" : "true");
+          b.title = collapsed
+            ? "Expand navigation (⌘B)"
+            : "Collapse navigation (⌘B)";
+        }
+      }
+      function toggleNav(force) {
+        const collapsed = force === undefined ? !navCollapsed() : !!force;
+        localStorage.setItem("kp-nav-collapsed", collapsed ? "1" : "0");
+        applyNav(collapsed);
+      }
+      applyNav(navCollapsed());
+
       function renderNav() {
         let h = "";
         for (const g of NAV_TREE()) {
           const open = groupOpen(g.group) || g.items.includes(state.kind);
           h += `<button class="parent ${open ? "open" : ""}" data-group="${esc(g.group)}" onclick="toggleGroup('${g.group}')">
-        <span class="caret">▶</span>${g.group}</button>`;
+        <span class="caret">▶</span><span class="nl">${esc(g.group)}</span></button>`;
           h += `<div class="nav-group-body ${open ? "open" : ""}" data-group="${esc(g.group)}"><div class="nav-group-inner">`;
           for (const k of g.items) {
             const extra = k === "alerts" ? ` <span id="nav-alert-count"></span>` : "";
-            h += `<button class="child ${state.kind === k ? "active" : ""}" onclick="go('${k}')">${icon(k)} ${cap(k)}${extra}</button>`;
+            h += `<button class="child ${state.kind === k ? "active" : ""}" data-label="${esc(cap(k))}" title="${esc(cap(k))}" onclick="go('${k}')">${icon(k)}<span class="nl"> ${cap(k)}${extra}</span></button>`;
           }
           h += `</div></div>`;
         }
@@ -5527,6 +5677,8 @@
           sub.textContent = t.includes("listening")
             ? "I am listening…"
             : "Tap to speak…";
+        // Every voice state change is also a stop-button state change.
+        if (typeof jzSyncTalkBtn === "function") jzSyncTalkBtn();
       }
       function jzShowAnswer(content, isHtml) {
         // In the AI HUD use its answer box; anywhere else, float a card over
@@ -5600,6 +5752,18 @@
       // mic reopens by itself, so a whole exchange stays hands-free. Tapping
       // the mic (or leaving the wing) ends the conversation.
       function jzMic(convo) {
+        // A tap while the assistant is talking means "stop", not "listen over
+        // the top of it". Deliberately keyed on speech synthesis alone rather
+        // than jzVoiceActive(): conversation mode reopens the mic from the
+        // utterance's own onend, and jzConvo is still true at that moment.
+        if (
+          !jzRecog &&
+          window.speechSynthesis &&
+          (speechSynthesis.speaking || speechSynthesis.pending)
+        ) {
+          stopTalking();
+          return;
+        }
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         // The desktop window (WKWebView/WebView2) and Safari don't do speech
         // recognition — that's this app's limitation, not a laptop setting.
@@ -9276,7 +9440,18 @@
           openPalette();
           return;
         }
+        if ((e.key === "b" || e.key === "B") && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          toggleNav();
+          return;
+        }
         if (e.key === "Escape") {
+          // Escape is the universal "stop": silence the assistant first, since
+          // a voice that keeps talking is the thing a user most wants to end.
+          if (jzVoiceActive()) {
+            stopTalking();
+            return;
+          }
           closePalette();
           closeHelp();
           if ($("#drawer").classList.contains("open")) closeDrawer();
@@ -9442,7 +9617,64 @@
       function talkToPilot() {
         // Voice works wherever you are: listen in place, answer in the
         // floating card (or the HUD's own box when you're already there).
+        // Tapping again stops it — starting something you cannot stop from the
+        // same control is the reason a mic button feels like a trap.
+        if (jzVoiceActive()) {
+          stopTalking();
+          return;
+        }
         jzMic(true);
+        jzSyncTalkBtn();
+      }
+
+      // jzVoiceActive covers both halves of a conversation: the mic being open
+      // and the assistant speaking. Either one needs stopping, and only one of
+      // them is tracked by a variable — speaking lives in the browser.
+      function jzVoiceActive() {
+        try {
+          return (
+            !!jzRecog ||
+            jzConvo ||
+            (window.speechSynthesis &&
+              (speechSynthesis.speaking || speechSynthesis.pending))
+          );
+        } catch {
+          return !!jzRecog;
+        }
+      }
+
+      // stopTalking is the one entry point every stop control goes through:
+      // the sidebar button, the talk bar, and Escape.
+      function stopTalking() {
+        jzStopVoice();
+        jzStatus("");
+        jzSyncTalkBtn();
+        toast("Voice stopped");
+      }
+
+      // The mic control has two jobs, so it has to show which one it is doing.
+      // speechSynthesis state changes without firing anything we listen to, so
+      // while voice is active this polls; when idle it costs nothing.
+      let jzBtnTimer = null;
+      function jzSyncTalkBtn() {
+        const active = jzVoiceActive();
+        for (const sel of [".vd-mic", ".dk-talk"]) {
+          const b = document.querySelector(sel);
+          if (!b) continue;
+          b.classList.toggle("stopping", active);
+          b.title = active ? "Stop (Esc)" : "Talk to KubeAura";
+        }
+        const tap = $(".vd-tap");
+        if (tap) tap.textContent = active ? "Tap to Stop" : "Tap to Speak";
+        const label = document.querySelector(".dk-talk-txt b");
+        if (label)
+          label.textContent = active ? "STOP TALKING" : "TALK TO KUBEAURA";
+        if (active && !jzBtnTimer) {
+          jzBtnTimer = setInterval(jzSyncTalkBtn, 400);
+        } else if (!active && jzBtnTimer) {
+          clearInterval(jzBtnTimer);
+          jzBtnTimer = null;
+        }
       }
       function jvBriefing() {
         // Briefed in place: the answer lands in the floating card and is
