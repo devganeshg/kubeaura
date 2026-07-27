@@ -79,6 +79,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/contexts", s.handleContexts)
 	mux.HandleFunc("/api/context", s.handleSwitchContext)
+	mux.HandleFunc("/api/clusters", s.handleClusters) // GET ?alerts=1 — fleet overview
 	mux.HandleFunc("/api/summary", s.handleSummary)
 	mux.HandleFunc("/api/insights", s.handleInsights)
 	mux.HandleFunc("/api/alerts", s.handleAlerts)
@@ -223,6 +224,14 @@ func (s *Server) handleSwitchContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"active": s.Mgr.Active()})
+}
+
+// handleClusters returns a health snapshot of every kubeconfig context at
+// once. Unreachable contexts come back as rows carrying their connection
+// error, so a single expired credential does not blank the page.
+func (s *Server) handleClusters(w http.ResponseWriter, r *http.Request) {
+	withAlerts := r.URL.Query().Get("alerts") == "1"
+	writeJSON(w, http.StatusOK, s.Mgr.Fleet(r.Context(), withAlerts))
 }
 
 // handleLogStream streams a pod's logs live over Server-Sent Events.
