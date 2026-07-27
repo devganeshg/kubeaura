@@ -135,6 +135,17 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/registry/images", s.handleListImages)             // GET ?repo=...
 	mux.HandleFunc("/api/registry/manifest", s.handleGetManifest)          // GET ?repo=...&tag=...
 
+	// Helm. Reads decode Helm's own storage secrets and always work; the write
+	// action runs the local helm binary, so it is loopback-only.
+	mux.HandleFunc("/api/helm/releases", s.handleHelmReleases) // GET ?namespace=
+	mux.HandleFunc("/api/helm/release", s.handleHelmRelease)   // GET ?namespace=&name=&revision=
+	mux.HandleFunc("/api/helm/diff", s.handleHelmDiff)         // GET ?namespace=&name=&from=&to=
+	mux.HandleFunc("/api/helm/action", s.sharedInstanceReadOnly(
+		"Helm install, upgrade, rollback and uninstall are disabled on a shared "+
+			"instance: they run the helm binary on the server, which can read charts "+
+			"and values from its filesystem. Run KubeAura locally to use them.",
+		s.handleHelmAction)) // POST {action, release, namespace, ...}
+
 	// GitOps (Argo CD / Flux, detected via CRDs)
 	mux.HandleFunc("/api/gitops", s.handleGitOps) // GET ?namespace=
 

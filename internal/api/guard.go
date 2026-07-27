@@ -63,12 +63,19 @@ func guard(h http.Handler, allowRemote bool) http.Handler {
 // On a normal loopback run none of this is a boundary — the operator can
 // already curl anything the process can. So the gate follows AllowRemote.
 func (s *Server) singleOperatorOnly(h http.HandlerFunc) http.HandlerFunc {
+	return s.sharedInstanceReadOnly(
+		"changing the AI model connection is disabled on a shared "+
+			"instance: it controls where cluster data is sent. Configure the backend "+
+			"with ANTHROPIC_API_KEY / KUBEAURA_AI_* on the Deployment instead.", h)
+}
+
+// sharedInstanceReadOnly rejects writes to an endpoint when this process is
+// serving a shared in-cluster instance, explaining why with msg. Reads stay
+// open, and on a normal loopback run the gate does nothing at all.
+func (s *Server) sharedInstanceReadOnly(msg string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.AllowRemote && r.Method != http.MethodGet {
-			http.Error(w, "changing the AI model connection is disabled on a shared "+
-				"instance: it controls where cluster data is sent. Configure the backend "+
-				"with ANTHROPIC_API_KEY / KUBEAURA_AI_* on the Deployment instead.",
-				http.StatusForbidden)
+			http.Error(w, msg, http.StatusForbidden)
 			return
 		}
 		h(w, r)

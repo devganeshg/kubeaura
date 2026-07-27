@@ -408,12 +408,21 @@ Config → Cluster → Access → Operate.
 | View              | What it does                                                                                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Autoscaling**   | **HPA status** (replicas min ≤ current → desired ≤ max, live metric utilization, at-max/scaling/inactive states, capacity-headroom bars) plus **KEDA ScaledObjects** with their triggers. |
+| **Helm**          | Releases decoded from **Helm's own storage secrets** — chart and app version, revision history, the values you supplied merged over chart defaults, the rendered manifest, notes, the objects a release owns, and a **line diff between any two revisions**. All of that works with no `helm` binary present. When one *is* on your `PATH`, install / upgrade / rollback / uninstall appear too (with a dry-run first). |
 | **Port Forwards** | Start, track, and stop port-forwards from one place (also a 🔀 button on Service/Pod rows).                                                                                               |
 | **Audit**         | A record of every write action you made this session (apply, scale, restart, delete, exec, port-forward).                                                                                 |
 
 The Security, Policy, GitOps, and KEDA views follow a **detect-don't-install**
 pattern: KubeAura reads the relevant CRDs when they exist and shows a friendly
-install hint when they don't.
+install hint when they don't. Helm follows the same stance from the other
+direction — reading releases never needs anything installed, and the lifecycle
+actions light up only when a `helm` binary is already on your `PATH`.
+
+Helm's write actions are **loopback-only**. They run the `helm` binary on the
+machine serving the UI, which can read charts and values from its filesystem —
+harmless when that machine is yours, an arbitrary-file-read primitive on a
+shared instance. A shared deployment (`KUBEAURA_ALLOW_REMOTE=1`) keeps the
+read-only Helm views and refuses the rest.
 
 ### Browsing resources
 
@@ -716,7 +725,9 @@ no ingress auth at all — a good way to start.
 **Done**
 
 - Health dashboard with charts; 19 resource kinds incl. RBAC
-- Multi-cluster context switching; server-side pagination
+- Multi-cluster context switching plus a **Fleet view** that queries every kubeconfig context in parallel; server-side pagination
+- **Helm**: release/history/values/manifest/notes decoded from Helm's storage secrets with revision diffs (no helm binary needed), plus install / upgrade / rollback / uninstall when one is present
+- **Compliance report export** (HTML / Markdown / CSV / JSON) combining image CVEs, policy results and RBAC posture into one verdict
 - Live log streaming; scale / restart / delete / apply; YAML dry-run diff
 - Metrics (heatmaps, inline pod usage, per-service levels) + zero-config telemetry discovery
 - Alerts (Pulse) triage; topology graph; RBAC viewer + permission masking
