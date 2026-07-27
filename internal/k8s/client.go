@@ -119,6 +119,12 @@ type ClusterSummary struct {
 func (c *Client) Summary(namespace string) (*ClusterSummary, error) {
 	cx, cancel := ctx()
 	defer cancel()
+	return c.SummaryContext(cx, namespace)
+}
+
+// SummaryContext is Summary under a caller-supplied deadline. The fleet view
+// uses it so one slow cluster cannot hold the whole overview open.
+func (c *Client) SummaryContext(cx context.Context, namespace string) (*ClusterSummary, error) {
 	s := &ClusterSummary{Context: c.Context}
 
 	nodes, err := c.cs.CoreV1().Nodes().List(cx, metav1.ListOptions{})

@@ -51,6 +51,12 @@ const (
 func (c *Client) Alerts(namespace string) (*AlertReport, error) {
 	cx, cancel := ctx()
 	defer cancel()
+	return c.AlertsContext(cx, namespace)
+}
+
+// AlertsContext is Alerts under a caller-supplied deadline, used by the fleet
+// view so one slow cluster cannot hold the whole overview open.
+func (c *Client) AlertsContext(cx context.Context, namespace string) (*AlertReport, error) {
 	rep := &AlertReport{Alerts: []Alert{}}
 	add := func(a Alert) { rep.Alerts = append(rep.Alerts, a) }
 

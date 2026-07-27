@@ -89,8 +89,21 @@ func (m *Manager) Client() *Client {
 // SetActive switches the active context, building and caching its Client on
 // first use.
 func (m *Manager) SetActive(name string) error {
+	if _, err := m.ClientFor(name); err != nil {
+		return err
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.active = name
+	return nil
+}
+
+// ClientFor returns the Client for one context, building and caching it on
+// first use. It is safe for concurrent use, which is what lets the fleet view
+// fan out across every context at once.
+func (m *Manager) ClientFor(name string) (*Client, error) {
+	m.mu.RLock()
+	cl, ok := m.clients[name]
 	known := false
 	for _, c := range m.contexts {
 		if c == name {
@@ -98,22 +111,35 @@ func (m *Manager) SetActive(name string) error {
 			break
 		}
 	}
+	m.mu.RUnlock()
+	if ok {
+		return cl, nil
+	}
 	if !known {
-		return fmt.Errorf("unknown context %q", name)
+		return nil, fmt.Errorf("unknown context %q", name)
 	}
-	if _, ok := m.clients[name]; !ok {
-		cfg, ctxName, err := restConfig(m.kubeconfig, name)
-		if err != nil {
-			return fmt.Errorf("connect to context %q: %w", name, err)
-		}
-		cl, err := newClient(cfg, ctxName)
-		if err != nil {
-			return fmt.Errorf("connect to context %q: %w", name, err)
-		}
-		m.clients[name] = cl
+
+	// Build outside the lock: creating a client can do DNS and exec credential
+	// plugins, and holding the write lock through that would stall every other
+	// context in a fleet refresh.
+	cfg, ctxName, err := restConfig(m.kubeconfig, name)
+	if err != nil {
+		return nil, fmt.Errorf("connect to context %q: %w", name, err)
 	}
-	m.active = name
-	return nil
+	built, err := newClient(cfg, ctxName)
+	if err != nil {
+		return nil, fmt.Errorf("connect to context %q: %w", name, err)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Another goroutine may have won the race; keep whichever landed first so
+	// port-forward state stays attached to a single Client per context.
+	if existing, ok := m.clients[name]; ok {
+		return existing, nil
+	}
+	m.clients[name] = built
+	return built, nil
 }
 
 // listContexts reads the kubeconfig and returns the sorted context names plus

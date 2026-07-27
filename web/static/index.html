@@ -4036,6 +4036,7 @@
         pvcs: "PVCs",
         clusterissuers: "ClusterIssuers",
         helmreleases: "HelmReleases",
+        clusters: "Fleet",
         helm: "Helm",
       };
       let state = {
@@ -4077,6 +4078,7 @@
             group: "Observe",
             items: [
               "dashboard",
+              "clusters",
               "metrics",
               "alerts",
               "quotas",
@@ -4204,6 +4206,8 @@
           '<path d="M22 18H2a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4Z"/><path d="M21 14 10 2 3 14h18Z"/><path d="M10 2v16"/>',
         _default: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1"/>',
       };
+      ICONS.clusters =
+        '<rect x="2" y="3" width="9" height="7" rx="1"/><rect x="13" y="3" width="9" height="7" rx="1"/><rect x="2" y="14" width="9" height="7" rx="1"/><rect x="13" y="14" width="9" height="7" rx="1"/>';
       ICONS.helm =
         '<path d="M12 2 4 6v6c0 4.4 3.4 8.4 8 10 4.6-1.6 8-5.6 8-10V6z"/><path d="M10 8v8"/><path d="M14 8v8"/><path d="M10 12h4"/>';
       ICONS.clusterroles = ICONS.roles;
@@ -4269,6 +4273,7 @@
           if (state.kind === "alerts") return renderAlerts();
           if (state.kind === "topology") return renderTopology();
           if (state.kind === "quotas") return renderQuotas();
+          if (state.kind === "clusters") return renderClusters();
           if (state.kind === "helm") return renderHelm();
           if (state.kind === "security") return renderSecurity();
           if (state.kind === "gitops") return renderGitOps();
@@ -6479,6 +6484,89 @@
       }
 
       // ---------- Audit trail ----------
+      // ---------- Fleet: every kubeconfig context at once ----------
+      // The active context still drives logs, exec and every write; this view
+      // is a read-only overview so an unhealthy cluster is visible without
+      // visiting each one in turn.
+      async function renderClusters() {
+        $("#main").innerHTML = `<h2>Fleet <span class="pill">all contexts</span>
+      <button class="btn ghost" style="margin-left:auto" onclick="renderClusters()">↻ Refresh</button></h2>
+    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">Every context in your kubeconfig, queried in parallel. Click a cluster to make it active.</div>
+    <div id="fleet-body"><div class="empty"><span class="spin"></span> Contacting every cluster…</div></div>`;
+        try {
+          const f = await api("/api/clusters?alerts=1");
+          const t = f.totals || {};
+          const rows = f.clusters || [];
+          if (!rows.length) {
+            $("#fleet-body").innerHTML =
+              `<div class="empty">No contexts found in your kubeconfig.</div>`;
+            return;
+          }
+          let h = `<div class="cards">
+        <div class="card"><div class="n">${t.reachable || 0}/${t.clusters || 0}</div><div class="l">Clusters reachable</div></div>
+        <div class="card"><div class="n">${t.nodesReady || 0}/${t.nodes || 0}</div><div class="l">Nodes ready</div></div>
+        <div class="card"><div class="n">${t.podsRunning || 0}/${t.pods || 0}</div><div class="l">Pods running</div></div>
+        <div class="card"><div class="n" style="color:${t.podsFailed ? "var(--red)" : "var(--green)"}">${t.podsFailed || 0}</div><div class="l">Pods failed</div></div>
+        <div class="card"><div class="n" style="color:${t.critical ? "var(--red)" : "var(--green)"}">${t.critical || 0}</div><div class="l">Critical alerts</div></div>
+      </div>`;
+
+          const healthy = rows.filter(
+            (c) => c.reachable && !c.podsFailed && !c.critical,
+          ).length;
+          const degraded = rows.filter(
+            (c) => c.reachable && (c.podsFailed || c.critical),
+          ).length;
+          const mix = [
+            { label: "Healthy", value: healthy },
+            { label: "Degraded", value: degraded },
+            { label: "Unreachable", value: t.unreachable || 0 },
+          ].filter((d) => d.value);
+          const load = rows
+            .filter((c) => c.reachable)
+            .map((c) => ({ label: c.context, value: c.pods }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 7);
+          h += `<div class="grid">
+        ${card("Fleet Health", "clusters by state", donut(mix, "clusters"))}
+        ${card("Busiest Clusters", "pods per cluster", hbars(load))}
+      </div>`;
+
+          h += `<table><thead><tr><th>Context</th><th>Cluster</th><th>Status</th><th>Version</th><th>Nodes</th><th>Pods</th><th>Alerts</th><th>Latency</th></tr></thead><tbody>`;
+          for (const c of rows) {
+            const status = !c.reachable
+              ? `<span style="color:var(--red);font-weight:600">Unreachable</span>`
+              : c.podsFailed || c.critical
+                ? `<span style="color:var(--yellow);font-weight:600">Degraded</span>`
+                : `<span style="color:var(--green);font-weight:600">Healthy</span>`;
+            const activeTag = c.active
+              ? ` <span class="pill" style="font-size:10px">active</span>`
+              : "";
+            h += `<tr class="clickable" onclick="fleetSwitch('${encodeURIComponent(c.context)}')">
+          <td class="mono">${esc(c.context)}${activeTag}</td>
+          <td class="mono" style="color:var(--muted)">${esc(c.cluster || "—")}</td>
+          <td>${status}</td>
+          <td class="mono" style="color:var(--muted)">${esc(c.version || "—")}</td>
+          <td class="mono">${c.reachable ? `${c.nodesReady}/${c.nodes}` : "—"}</td>
+          <td class="mono">${c.reachable ? `${c.podsRunning}/${c.pods}` : "—"}</td>
+          <td style="white-space:nowrap">${c.reachable ? `${sevBadge("C", c.critical, "CRITICAL")} ${sevBadge("W", c.warning, "MEDIUM")}` : "—"}</td>
+          <td class="mono" style="color:var(--muted)">${c.reachable ? c.latencyMs + "ms" : "—"}</td></tr>`;
+            // The connection error is the whole reason the row is there.
+            if (c.error) {
+              h += `<tr><td colspan="8" style="padding-top:0">
+            <div class="sub" style="color:var(--muted);font-size:11px">⚠️ ${esc(c.error)}</div></td></tr>`;
+            }
+          }
+          $("#fleet-body").innerHTML = h + `</tbody></table>`;
+          animateCounts();
+        } catch (e) {
+          $("#fleet-body").innerHTML =
+            `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+      function fleetSwitch(encoded) {
+        switchContext(decodeURIComponent(encoded));
+      }
+
       // ---------- Helm ----------
       // Reads decode Helm's own storage secrets, so the release list, values,
       // manifest and history work with no helm binary present. The lifecycle
