@@ -7,10 +7,63 @@ they do, it will say so here.
 
 ## [Unreleased]
 
+## [v0.2.0] — 2026-07-27
+
+Four features and one thing that should never have shipped the way it did.
+
+If you use the AI Assistant with a hosted model, read the first section —
+what leaves your machine has changed, and so has your ability to see it.
+
+### Added
+
+- **Evidence envelope for model calls.** The Assistant is the one part of
+  KubeAura that can send cluster state to a third party. Troubleshooting used
+  to marshal the entire pod object — inline environment values, the
+  `last-applied-configuration` annotation (a verbatim copy of your manifest),
+  and uncapped events. Evidence is now redacted by rule: every inline
+  `env[].value` is dropped while names and `valueFrom`/`envFrom` references
+  survive, credential-shaped annotations go, `command`/`args` are scrubbed,
+  logs cap at 32 KiB and events at 40/16 KiB. The payload is an explicit
+  allow-list, so a new field in a future client-go cannot start being sent
+  silently. Every call produces an envelope — resource and UID, the rules that
+  fired with counts and bytes, the log window, the destination, and a SHA-256
+  of the payload — shown for approval before an off-machine call and recorded
+  in the audit trail with the answer. Secret contents are still read nowhere.
+- **Helm.** Releases, history, values, manifest and notes, decoded from Helm's
+  own storage secrets — no new dependency, works without the helm binary.
+  Upgrade, rollback and uninstall shell out to real `helm` and are
+  loopback-only.
+- **Fleet view.** Every kubeconfig context queried concurrently, so an
+  unreachable cluster becomes a row with its error instead of a hung page.
+- **Compliance report export.** Vulnerabilities, policy results and RBAC
+  posture as JSON, CSV, Markdown or HTML.
+- **Collapsible navigation** (⌘B) and a **stop control for the voice
+  assistant** — the mic is now a toggle, and Escape stops speech.
+
+### Changed
+
+- `/api/ai/troubleshoot` and `/api/ai/logsummary` return `{answer, evidence}`
+  instead of `{answer}`, and accept `{"preview": true}` to return the envelope
+  without calling the model. Readers of `answer` are unaffected.
+- RBAC now resolves per request from the active context. It previously used a
+  validator captured at startup, which reported the previous cluster's answers
+  after a context switch.
+
 ### Fixed
 
+- **The compliance check never checked anything.** `/api/security/compliance`
+  returned `{"compliant": true, "violations": []}` for any input, behind a
+  TODO. It now resolves the image against Trivy Operator's reports and rejects
+  unknown policy names. A check that cannot run is reported as `checked:
+  false` with the reason and never counts as a pass.
 - `kubeaura --version` printed `0.1.1` from a release download but `v0.1.1`
   from `go install`. Both report the tag form now.
+
+### Upgrading
+
+No configuration changes. If you script against the compliance endpoint,
+note that it can now return 400 for a policy name it previously accepted —
+that acceptance was never meaningful.
 
 ## [v0.1.1] — 2026-07-26
 
