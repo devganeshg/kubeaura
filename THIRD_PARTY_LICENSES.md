@@ -50,17 +50,17 @@ makes no modifications to either module.
 | [gopkg.in/evanphx/json-patch.v4](https://gopkg.in/evanphx/json-patch.v4) | v4.13.0 | BSD-3-Clause |
 | [gopkg.in/inf.v0](https://gopkg.in/inf.v0) | v0.9.1 | BSD-3-Clause |
 | [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) | v3.0.1 | MIT |
-| [k8s.io/api](https://k8s.io/api) | v0.36.2 | Apache-2.0 |
-| [k8s.io/apimachinery](https://k8s.io/apimachinery) | v0.36.2 | Apache-2.0 |
-| [k8s.io/client-go](https://k8s.io/client-go) | v0.36.2 | Apache-2.0 |
+| [k8s.io/api](https://k8s.io/api) | v0.36.3 | Apache-2.0 |
+| [k8s.io/apimachinery](https://k8s.io/apimachinery) | v0.36.3 | Apache-2.0 |
+| [k8s.io/client-go](https://k8s.io/client-go) | v0.36.3 | Apache-2.0 |
 | [k8s.io/klog/v2](https://k8s.io/klog/v2) | v2.140.0 | Apache-2.0 |
 | [k8s.io/kube-openapi](https://k8s.io/kube-openapi) | v0.0.0-20260317180543-43fb72c5454a | Apache-2.0 |
-| [k8s.io/metrics](https://k8s.io/metrics) | v0.36.2 | Apache-2.0 |
-| [k8s.io/streaming](https://k8s.io/streaming) | v0.36.2 | Apache-2.0 |
+| [k8s.io/metrics](https://k8s.io/metrics) | v0.36.3 | Apache-2.0 |
+| [k8s.io/streaming](https://k8s.io/streaming) | v0.36.3 | Apache-2.0 |
 | [k8s.io/utils](https://k8s.io/utils) | v0.0.0-20260210185600-b8788abfbbc2 | Apache-2.0 |
 | [sigs.k8s.io/json](https://sigs.k8s.io/json) | v0.0.0-20250730193827-2d320260d730 | Apache-2.0 |
 | [sigs.k8s.io/randfill](https://sigs.k8s.io/randfill) | v1.0.0 | Apache-2.0 |
-| [sigs.k8s.io/structured-merge-diff/v6](https://sigs.k8s.io/structured-merge-diff/v6) | v6.3.2 | Apache-2.0 |
+| [sigs.k8s.io/structured-merge-diff/v6](https://sigs.k8s.io/structured-merge-diff/v6) | v6.3.3 | Apache-2.0 |
 | [sigs.k8s.io/yaml](https://sigs.k8s.io/yaml) | v1.6.0 | MIT |
 
 ## Runtime assets loaded by the web UI
