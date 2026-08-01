@@ -128,7 +128,7 @@ jobs:
       # Docker Hub shows a repo's README on its listing page; without this the
       # image looks abandoned next to every other result.
       - if: steps.hub.outputs.enabled == 'true'
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
