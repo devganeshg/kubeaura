@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/devganeshg/kubeaura/internal/ai"
+	"github.com/devganeshg/kubeaura/internal/alertstate"
 	"github.com/devganeshg/kubeaura/internal/artifactory"
 	"github.com/devganeshg/kubeaura/internal/dockerfile"
 	"github.com/devganeshg/kubeaura/internal/evidence"
@@ -48,6 +50,11 @@ type Server struct {
 	audit     *auditLog
 	auditOnce sync.Once
 
+	// alertTracker remembers alerts between evaluations. Lazily built so a
+	// zero-value Server (tests, the fleet overview) still works.
+	alertTracker *alertstate.Tracker
+	alertOnce    sync.Once
+
 	// Short per-session chat history for /api/ai/query, so follow-up
 	// questions ("and why is it restarting?") keep their referent.
 	histMu sync.Mutex
@@ -68,6 +75,16 @@ func (s *Server) aud(action, target, detail string, err error) {
 		}
 	}
 	s.audit.record(AuditEntry{Context: s.Mgr.Active(), Action: action, Target: target, Detail: detail, Result: result})
+}
+
+// alerts returns the alert-state tracker, building it on first use.
+func (s *Server) alerts() *alertstate.Tracker {
+	s.alertOnce.Do(func() {
+		if s.alertTracker == nil {
+			s.alertTracker = alertstate.New()
+		}
+	})
+	return s.alertTracker
 }
 
 // k8s returns the Client for the currently active context.
@@ -99,6 +116,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/summary", s.handleSummary)
 	mux.HandleFunc("/api/insights", s.handleInsights)
 	mux.HandleFunc("/api/alerts", s.handleAlerts)
+	mux.HandleFunc("/api/alerts/ack", s.handleAlertAck)
+	mux.HandleFunc("/api/changes", s.handleChanges)
+	mux.HandleFunc("/api/prom/status", s.handlePromStatus)
+	mux.HandleFunc("/api/prom/query", s.handlePromQuery)
+	mux.HandleFunc("/api/prom/history", s.handlePromHistory)
 	mux.HandleFunc("/api/metrics/nodes", s.handleNodeMetrics)
 	mux.HandleFunc("/api/metrics/pods", s.handlePodMetrics)
 	mux.HandleFunc("/api/service/observability", s.handleServiceObs)
@@ -321,7 +343,185 @@ func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, rep)
+	// Rule evaluation is stateless; the tracker is what turns a list of what is
+	// wrong into a queue of what to look at, and it only learns by being asked.
+	tracked := s.alerts().Observe(s.Mgr.Active(), ns, rep)
+
+	// Correlation needs the alert clocks the tracker just stamped, so it runs
+	// after Observe. Skipped when the caller opts out, since it costs a Helm
+	// and ReplicaSet listing on every dashboard refresh.
+	if r.URL.Query().Get("correlate") != "0" {
+		if changes, err := s.k8s().Changes(ns, correlationLookback); err == nil {
+			k8s.CorrelateChanges(tracked.Alerts, changes, 0)
+		}
+	}
+	writeJSON(w, http.StatusOK, tracked)
+}
+
+// correlationLookback bounds how far back the alert view reads changes. An
+// alert that started 30 minutes ago cannot have been caused by something that
+// has not happened yet, and reading a full day of history on every refresh is
+// waste.
+const correlationLookback = 6 * time.Hour
+
+// --- Prometheus ------------------------------------------------------------
+
+// promWindow parses the ?hours= window shared by the Prometheus handlers.
+func promWindow(r *http.Request) (time.Duration, error) {
+	v := r.URL.Query().Get("hours")
+	if v == "" {
+		return time.Hour, nil
+	}
+	h, err := strconv.Atoi(v)
+	if err != nil || h <= 0 || h > 720 {
+		return 0, errString("hours must be between 1 and 720")
+	}
+	return time.Duration(h) * time.Hour, nil
+}
+
+// handlePromStatus reports whether this cluster has a Prometheus KubeAura can
+// query, so the UI can hide trend charts rather than showing empty ones — the
+// same thing it already does for metrics-server.
+func (s *Server) handlePromStatus(w http.ResponseWriter, r *http.Request) {
+	ref, ok := s.k8s().PrometheusRef()
+	if !ok {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"available": false})
+		return
+	}
+	// Discovery only proves a Service exists. Whether it answers is a different
+	// question, and the one the UI actually needs answered.
+	cx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	if _, err := s.k8s().PromQuery(cx, "up"); err != nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"available": false,
+			"service":   ref.Namespace + "/" + ref.Service,
+			"error":     err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"available": true,
+		"service":   ref.Namespace + "/" + ref.Service,
+		"url":       ref.URL,
+	})
+}
+
+// handlePromQuery runs an operator-supplied PromQL query. Instant by default;
+// ?range=1 turns it into a range query over ?hours=.
+func (s *Server) handlePromQuery(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if strings.TrimSpace(q) == "" {
+		writeErr(w, http.StatusBadRequest, errString("q is required"))
+		return
+	}
+	window, err := promWindow(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	cx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	var res *k8s.PromResult
+	if r.URL.Query().Get("range") == "1" {
+		res, err = s.k8s().PromRange(cx, q, window, 0)
+	} else {
+		res, err = s.k8s().PromQuery(cx, q)
+	}
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handlePromHistory serves the curated series, so the common questions do not
+// require the operator to write PromQL.
+func (s *Server) handlePromHistory(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	kind := k8s.PromHistoryKind(q.Get("kind"))
+	if kind == "" {
+		writeErr(w, http.StatusBadRequest, errString("kind is required (pod-cpu, pod-memory, node-cpu, node-memory, restarts)"))
+		return
+	}
+	window, err := promWindow(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	cx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	res, err := s.k8s().PromHistory(cx, kind, q.Get("namespace"), q.Get("name"), window)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handleChanges is the "what changed?" timeline: deploys, rollouts, syncs and
+// node joins, newest first.
+func (s *Server) handleChanges(w http.ResponseWriter, r *http.Request) {
+	ns := r.URL.Query().Get("namespace")
+	window := defaultChangeWindow
+	if v := r.URL.Query().Get("hours"); v != "" {
+		h, err := strconv.Atoi(v)
+		if err != nil || h <= 0 || h > 720 {
+			writeErr(w, http.StatusBadRequest, errString("hours must be between 1 and 720"))
+			return
+		}
+		window = time.Duration(h) * time.Hour
+	}
+	changes, err := s.k8s().Changes(ns, window)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"changes": changes,
+		"window":  window.String(),
+	})
+}
+
+// defaultChangeWindow matches the client default so the UI and a bare curl see
+// the same timeline.
+const defaultChangeWindow = 24 * time.Hour
+
+// handleAlertAck acknowledges an alert so it sinks to the bottom of the queue.
+// The acknowledgement is dropped automatically if the alert resolves, so a
+// recurrence is surfaced again rather than staying silently triaged.
+func (s *Server) handleAlertAck(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Fingerprint string `json:"fingerprint"`
+		Note        string `json:"note"`
+		Minutes     int    `json:"minutes"` // 0 = until the alert resolves
+		Undo        bool   `json:"undo"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if body.Fingerprint == "" {
+		writeErr(w, http.StatusBadRequest, errString("fingerprint is required"))
+		return
+	}
+	cluster := s.Mgr.Active()
+	if body.Undo {
+		s.alerts().Unack(cluster, body.Fingerprint)
+		s.aud("alert.unack", body.Fingerprint, "", nil)
+		writeJSON(w, http.StatusOK, map[string]bool{"acked": false})
+		return
+	}
+	var until time.Time
+	detail := body.Note
+	if body.Minutes > 0 {
+		until = time.Now().Add(time.Duration(body.Minutes) * time.Minute)
+		detail = fmt.Sprintf("%s (for %dm)", body.Note, body.Minutes)
+	}
+	s.alerts().Ack(cluster, body.Fingerprint, body.Note, until)
+	s.aud("alert.ack", body.Fingerprint, detail, nil)
+	writeJSON(w, http.StatusOK, map[string]bool{"acked": true})
 }
 
 func (s *Server) handleServiceObs(w http.ResponseWriter, r *http.Request) {
@@ -602,6 +802,12 @@ func (s *Server) describeDestination(env *evidence.Envelope) {
 // hash and the size, never the evidence: the point is that a diagnosis can be
 // tied back to its inputs without keeping those inputs anywhere.
 func evidenceDetail(env evidence.Envelope) string {
+	return fmt.Sprintf("evidence %s, %d bytes → %s",
+		evidence.Short(env.Hash), env.Bytes, destinationName(env))
+}
+
+// destinationName renders the backend half of an audit line.
+func destinationName(env evidence.Envelope) string {
 	where := env.Provider
 	if where == "" {
 		where = "unknown backend"
@@ -609,7 +815,7 @@ func evidenceDetail(env evidence.Envelope) string {
 	if env.Local {
 		where += " (on this machine)"
 	}
-	return fmt.Sprintf("evidence %s, %d bytes → %s", evidence.Short(env.Hash), env.Bytes, where)
+	return where
 }
 
 func (s *Server) handleGetYAML(w http.ResponseWriter, r *http.Request) {
@@ -899,14 +1105,20 @@ func (s *Server) handleAIQuery(w http.ResponseWriter, r *http.Request) {
 		Question  string `json:"question"`
 		Namespace string `json:"namespace"`
 		Session   string `json:"session"`
+		Preview   bool   `json:"preview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	snapshot, err := s.snapshot(body.Namespace)
+	payload, err := s.snapshot("query", body.Namespace)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	s.describeDestination(&payload.Envelope)
+	if body.Preview {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"evidence": payload.Envelope})
 		return
 	}
 	docCtx := ""
@@ -914,15 +1126,17 @@ func (s *Server) handleAIQuery(w http.ResponseWriter, r *http.Request) {
 		docCtx = s.DocsRAG.ContextForPrompt(body.Question, s.DocsTopK)
 	}
 	question := s.foldHistory(body.Session, body.Question)
-	answer, err := s.AI.QueryWithDocs(r.Context(), question, snapshot, docCtx)
+	answer, err := s.AI.QueryWithDocs(r.Context(), question, payload.JSON, docCtx)
+	s.aud("ai.query", nsRef(body.Namespace), evidenceDetail(payload.Envelope), err)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
 	s.chatRemember(body.Session, body.Question, answer)
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"answer":  answer,
-		"objects": s.sourceObjects(body.Namespace, body.Question, answer),
+		"answer":   answer,
+		"objects":  s.sourceObjects(body.Namespace, body.Question, answer),
+		"evidence": payload.Envelope,
 	})
 }
 
@@ -959,6 +1173,7 @@ func (s *Server) handleAIQueryStream(w http.ResponseWriter, r *http.Request) {
 		Question  string `json:"question"`
 		Namespace string `json:"namespace"`
 		Session   string `json:"session"`
+		Preview   bool   `json:"preview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -984,11 +1199,15 @@ func (s *Server) handleAIQueryStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	emit(map[string]string{"type": "stage", "stage": "snapshot", "label": "Scanning live cluster state"})
-	snapshot, err := s.snapshot(body.Namespace)
+	payload, err := s.snapshot("query", body.Namespace)
 	if err != nil {
 		fail(err)
 		return
 	}
+	s.describeDestination(&payload.Envelope)
+	// The envelope reaches the client before the first token, so the operator
+	// can see what is leaving while the answer is still being written.
+	emit(map[string]interface{}{"type": "evidence", "evidence": payload.Envelope})
 	docCtx := ""
 	if s.DocsRAG != nil {
 		emit(map[string]string{"type": "stage", "stage": "docs", "label": "Searching platform docs"})
@@ -997,9 +1216,10 @@ func (s *Server) handleAIQueryStream(w http.ResponseWriter, r *http.Request) {
 	emit(map[string]string{"type": "stage", "stage": "model", "label": "Reasoning with " + s.AI.ModelName()})
 
 	question := s.foldHistory(body.Session, body.Question)
-	answer, err := s.AI.QueryStreamWithDocs(r.Context(), question, snapshot, docCtx, func(delta string) {
+	answer, err := s.AI.QueryStreamWithDocs(r.Context(), question, payload.JSON, docCtx, func(delta string) {
 		emit(map[string]string{"type": "token", "text": delta})
 	})
+	s.aud("ai.query", nsRef(body.Namespace), evidenceDetail(payload.Envelope), err)
 	if err != nil {
 		fail(err)
 		return
@@ -1164,7 +1384,11 @@ func (s *Server) handleAIGenerate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
+	// No redaction here on purpose: the payload is the description the operator
+	// typed, and nothing is read from the cluster. It still gets an audit line,
+	// so the trail accounts for every call that leaves the machine.
 	yaml, err := s.AI.Generate(r.Context(), body.Description)
+	s.aud("ai.generate", "manifest", s.destinationDetail(len(body.Description)), err)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
@@ -1181,13 +1405,30 @@ func (s *Server) handleTopology(w http.ResponseWriter, r *http.Request) {
 	}
 	// Optional AI explanation when ?explain=1.
 	if r.URL.Query().Get("explain") == "1" {
-		tj, _ := json.Marshal(t)
-		answer, err := s.AI.ExplainTopology(r.Context(), string(tj))
+		nodes, links := topologyItems(t)
+		payload, err := evidence.ForSnapshot(evidence.SnapshotInput{
+			Purpose:   "topology",
+			Namespace: ns,
+			Summary:   map[string]interface{}{"nodes": len(t.Nodes), "edges": len(t.Edges)},
+			Groups: []evidence.SnapshotGroup{
+				{Kind: "graph", Items: nodes},
+				{Kind: "links", Items: links},
+			},
+		})
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+		s.describeDestination(&payload.Envelope)
+		answer, err := s.AI.ExplainTopology(r.Context(), payload.JSON)
+		s.aud("ai.topology", nsRef(ns), evidenceDetail(payload.Envelope), err)
 		if err != nil {
 			writeErr(w, http.StatusBadGateway, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]interface{}{"topology": t, "explain": answer})
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"topology": t, "explain": answer, "evidence": payload.Envelope,
+		})
 		return
 	}
 	writeJSON(w, http.StatusOK, t)
@@ -1201,13 +1442,32 @@ func (s *Server) handleAITriage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sum, _ := s.k8s().Summary(ns)
-	payload, _ := json.Marshal(map[string]interface{}{"summary": sum, "alerts": rep})
-	answer, err := s.AI.Triage(r.Context(), string(payload))
+	// Alert rows are built from event messages, which are the least trustworthy
+	// free text in the cluster — scrub and cap them like any other evidence.
+	payload, err := evidence.ForSnapshot(evidence.SnapshotInput{
+		Purpose:   "triage",
+		Namespace: ns,
+		Summary:   sum,
+		Groups:    []evidence.SnapshotGroup{{Kind: "alerts", Items: alertItems(rep)}},
+	})
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.describeDestination(&payload.Envelope)
+	if r.URL.Query().Get("preview") == "1" {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"evidence": payload.Envelope})
+		return
+	}
+	answer, err := s.AI.Triage(r.Context(), payload.JSON)
+	s.aud("ai.triage", nsRef(ns), evidenceDetail(payload.Envelope), err)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"answer": answer, "counts": rep})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"answer": answer, "counts": rep, "evidence": payload.Envelope,
+	})
 }
 
 func (s *Server) handleAIReview(w http.ResponseWriter, r *http.Request) {
@@ -1216,6 +1476,7 @@ func (s *Server) handleAIReview(w http.ResponseWriter, r *http.Request) {
 		Kind      string `json:"kind"`
 		Namespace string `json:"namespace"`
 		Name      string `json:"name"`
+		Preview   bool   `json:"preview"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -1235,31 +1496,144 @@ func (s *Server) handleAIReview(w http.ResponseWriter, r *http.Request) {
 		}
 		yaml = y
 	}
-	answer, err := s.AI.Review(r.Context(), yaml)
+	// GetYAML strips only server noise, so reviewing a Secret used to post its
+	// entire data block to the model provider. A pasted manifest takes the same
+	// path, for the same reason.
+	payload, err := evidence.ForManifest(evidence.ManifestInput{
+		YAML: yaml, Kind: body.Kind, Namespace: body.Namespace, Name: body.Name,
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	s.describeDestination(&payload.Envelope)
+	if body.Preview {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"evidence": payload.Envelope})
+		return
+	}
+	answer, err := s.AI.Review(r.Context(), payload.JSON)
+	s.aud("ai.review", objRef(body.Kind, body.Namespace, body.Name), evidenceDetail(payload.Envelope), err)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"answer": answer})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"answer": answer, "evidence": payload.Envelope,
+	})
 }
 
 // snapshot builds a compact JSON view of the cluster for grounding AI queries.
-func (s *Server) snapshot(namespace string) (string, error) {
+// nsRef and objRef name the subject of an audit line. A model call is not
+// scoped to one object the way a scale or a delete is, so the reference says
+// which slice of the cluster the evidence came from.
+func nsRef(ns string) string {
+	if ns == "" {
+		return "cluster (all namespaces)"
+	}
+	return "namespace/" + ns
+}
+
+func objRef(kind, ns, name string) string {
+	if name == "" {
+		return "pasted manifest"
+	}
+	if kind == "" {
+		kind = "object"
+	}
+	if ns == "" {
+		return kind + "/" + name
+	}
+	return kind + "/" + ns + "/" + name
+}
+
+// destinationDetail is the audit line for a call that carries no cluster
+// evidence: there is no hash to record, but where the bytes went and how many
+// there were still belongs in the trail.
+func (s *Server) destinationDetail(n int) string {
+	var env evidence.Envelope
+	s.describeDestination(&env)
+	return fmt.Sprintf("no cluster evidence, %d bytes → %s", n, destinationName(env))
+}
+
+// alertItems maps an alert report into evidence rows. Title and Detail are
+// derived from event messages, so they land in Info where the scrubbers run.
+func alertItems(rep *k8s.AlertReport) []evidence.SnapshotItem {
+	if rep == nil {
+		return nil
+	}
+	out := make([]evidence.SnapshotItem, 0, len(rep.Alerts))
+	for _, a := range rep.Alerts {
+		out = append(out, evidence.SnapshotItem{
+			Kind:      a.Kind,
+			Name:      a.Name,
+			Namespace: a.Namespace,
+			Status:    a.Severity,
+			Info:      a.Category + ": " + a.Title + " — " + a.Detail,
+			Age:       a.Age,
+		})
+	}
+	return out
+}
+
+// topologyItems flattens the graph into evidence rows: one group for the nodes,
+// one for the edges. The edges are what make the graph explainable, so they are
+// carried as rows of their own rather than folded into the node summaries,
+// where the byte cap would drop them first.
+func topologyItems(t *k8s.Topology) (nodes, links []evidence.SnapshotItem) {
+	for _, n := range t.Nodes {
+		nodes = append(nodes, evidence.SnapshotItem{
+			Kind: n.Kind, Name: n.Name, Namespace: t.Namespace,
+			Status: n.Status, Info: n.Info,
+		})
+	}
+	for _, e := range t.Edges {
+		links = append(links, evidence.SnapshotItem{
+			Kind: "Edge", Name: e.From + " → " + e.To, Namespace: t.Namespace, Info: e.Kind,
+		})
+	}
+	return nodes, links
+}
+
+// snapshot builds the redacted cluster payload that grounds a model call.
+//
+// The rows are already flat — k8s.List returns a summary row, not the object —
+// so nothing here carries a pod spec or a Secret body. What it does carry is
+// free text the cluster wrote: an event message is verbatim controller output
+// and routinely quotes a connection string. That, and the absence of any
+// ceiling on 5 kinds x 200 rows, is why this goes through evidence like every
+// other model call.
+func (s *Server) snapshot(purpose, namespace string) (*evidence.Payload, error) {
 	sum, err := s.k8s().Summary(namespace)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	snap := map[string]interface{}{"summary": sum}
-	// Include the most useful resource lists; ignore per-kind errors so a
-	// missing API group (e.g. no ingress controller) doesn't fail the query.
-	// Cap each list so the AI snapshot stays within a sane token budget.
-	for _, kind := range []string{"pods", "deployments", "services", "nodes", "events"} {
-		if res, err := s.k8s().List(kind, namespace, k8s.ListParams{Limit: 200}); err == nil {
-			snap[kind] = res.Items
+	in := evidence.SnapshotInput{Purpose: purpose, Namespace: namespace, Summary: sum}
+	// Ordered least-droppable first: trimming halves the largest group, and the
+	// node/deployment lists are both small and load-bearing for a diagnosis.
+	// Ignore per-kind errors so a missing API group (e.g. no ingress
+	// controller) doesn't fail the whole query.
+	for _, kind := range []string{"nodes", "deployments", "services", "pods", "events"} {
+		res, err := s.k8s().List(kind, namespace, k8s.ListParams{Limit: 200})
+		if err != nil {
+			continue
 		}
+		in.Groups = append(in.Groups, evidence.SnapshotGroup{Kind: kind, Items: snapshotItems(res.Items)})
 	}
-	b, err := json.Marshal(snap)
-	return string(b), err
+	return evidence.ForSnapshot(in)
+}
+
+// snapshotItems maps cluster rows into the evidence package's own shape. The
+// mapping lives here rather than in evidence so that package stays free of a
+// client-go dependency and its tests stay fast.
+func snapshotItems(items []k8s.Resource) []evidence.SnapshotItem {
+	out := make([]evidence.SnapshotItem, 0, len(items))
+	for _, it := range items {
+		out = append(out, evidence.SnapshotItem{
+			Kind: it.Kind, Name: it.Name, Namespace: it.Namespace,
+			Status: it.Status, Info: it.Info, Age: it.Age, Labels: it.Labels,
+		})
+	}
+	return out
 }
 
 type errString string
