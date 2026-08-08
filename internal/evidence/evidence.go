@@ -83,14 +83,19 @@ type ResourceRef struct {
 // Envelope is the operator-facing description of one model call: what is going
 // out, what was taken out, how much of it there is, and its hash.
 type Envelope struct {
-	Purpose    string      `json:"purpose"` // "troubleshoot" | "logsummary"
+	// Purpose is one of "troubleshoot", "logsummary", "review", "query",
+	// "triage", "topology", "generate" — one per AI endpoint, so an audit
+	// reader can tell which feature sent the bytes.
+	Purpose    string      `json:"purpose"`
 	Resource   ResourceRef `json:"resource"`
 	Fields     []string    `json:"fields"`     // top-level content groups included
 	Redactions []Redaction `json:"redactions"` // empty means nothing matched
 	LogWindow  *LogWindow  `json:"logWindow,omitempty"`
 	Events     int         `json:"events"`
-	Bytes      int         `json:"bytes"` // payload size leaving the machine
-	Hash       string      `json:"hash"`  // sha256 of the exact payload, hex
+	Items      int         `json:"items,omitempty"`     // rows in a cluster snapshot
+	Bytes      int         `json:"bytes"`               // payload size leaving the machine
+	Hash       string      `json:"hash"`                // sha256 of the exact payload, hex
+	Truncated  bool        `json:"truncated,omitempty"` // a byte cap dropped content
 	PreparedAt time.Time   `json:"preparedAt"`
 
 	// Destination is filled in by the caller once the backend is known, so the
