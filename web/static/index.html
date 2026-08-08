@@ -154,7 +154,8 @@
           var(--bg);
         background-attachment: fixed;
         color: var(--text);
-        font-size: 14px;
+        font-size: 15px;
+        line-height: 1.5;
       }
       a {
         color: var(--accent);
@@ -307,6 +308,51 @@
         overflow-y: auto;
         padding: 20px;
       }
+      /* Cap line length on a wide monitor so prose and forms stay readable.
+         Tables opt out — they genuinely want the room. */
+      main > * {
+        max-width: 1400px;
+      }
+      main > .table-wrap,
+      main > table,
+      main > .cards {
+        max-width: none;
+      }
+      /* AI is optional. When no provider is configured its affordances are hidden
+         outright rather than shown as buttons that only ever fail. */
+      body.ai-off .ai-feature {
+        display: none !important;
+      }
+      /* YAML syntax colouring (read mode). */
+      .yaml-hl .y-key {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .yaml-hl .y-top {
+        font-weight: 700;
+        text-decoration: underline;
+        text-decoration-color: rgba(var(--accent-rgb), 0.45);
+        text-underline-offset: 3px;
+      }
+      .yaml-hl .y-str {
+        color: #3fa87a;
+      }
+      .yaml-hl .y-num {
+        color: #d08a2c;
+      }
+      .yaml-hl .y-bool {
+        color: #b06ad0;
+        font-weight: 600;
+      }
+      .yaml-hl .y-com {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .yaml-hl .y-dash,
+      .yaml-hl .y-doc {
+        color: var(--muted);
+        font-weight: 700;
+      }
       .cards {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -426,14 +472,14 @@
       th,
       td {
         text-align: left;
-        padding: 9px 12px;
+        padding: 11px 14px;
         border-bottom: 1px solid var(--border);
-        font-size: 13px;
+        font-size: 14px;
       }
       th {
         color: var(--muted);
         font-weight: 500;
-        font-size: 11px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.4px;
         background: var(--panel2);
@@ -447,7 +493,7 @@
       td.mono,
       .mono {
         font-family: var(--mono);
-        font-size: 12px;
+        font-size: 13px;
       }
       .status {
         font-weight: 600;
@@ -511,6 +557,15 @@
       }
       .btn.ghost {
         background: var(--panel2);
+      }
+      .btn.danger {
+        background: #c0392b;
+      }
+      .btn.danger:disabled,
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        filter: none;
       }
       /* Form field used by the dialogs (Helm install, rollback). */
       .inp {
@@ -1201,6 +1256,64 @@
         font-size: 11px;
         color: var(--muted);
         font-family: var(--mono);
+      }
+      /* An acknowledged alert stays readable but stops competing for attention:
+         triaging one is how you clear it, so it has to visibly clear. */
+      .alert.acked {
+        opacity: 0.55;
+      }
+      .alert.resolved .bar {
+        background: var(--green);
+      }
+      .alert .suspects {
+        margin-top: 4px;
+        padding-left: 2px;
+        border-left: 2px solid var(--border);
+        padding-left: 8px;
+      }
+      .alert .dim {
+        opacity: 0.7;
+      }
+      .btn.xs {
+        font-size: 10px;
+        padding: 2px 8px;
+        margin-top: 4px;
+      }
+      .timeline {
+        display: flex;
+        flex-direction: column;
+      }
+      .tl-row {
+        display: grid;
+        grid-template-columns: 72px 24px 1fr auto;
+        gap: 10px;
+        align-items: baseline;
+        padding: 8px 4px;
+        border-bottom: 1px solid var(--border);
+      }
+      .tl-row:hover {
+        background: var(--panel);
+      }
+      .tl-when,
+      .tl-ns {
+        font-size: 11px;
+        color: var(--muted);
+        font-family: var(--mono);
+      }
+      .tl-ns {
+        text-align: right;
+      }
+      .tl-dot {
+        text-align: center;
+      }
+      .tl-what .t {
+        font-size: 13px;
+      }
+      .tl-what .d {
+        font-size: 11px;
+        color: var(--muted);
+        font-family: var(--mono);
+        margin-top: 2px;
       }
       .alert .sev {
         display: inline-block;
@@ -2899,6 +3012,43 @@
         color: var(--text);
         border-color: rgba(var(--accent-rgb), 0.4);
       }
+      /* The AI plug-in switch: a real on/off, not a status light. */
+      #ai-toggle {
+        white-space: nowrap;
+      }
+      #ai-toggle .sw {
+        width: 24px;
+        height: 13px;
+        border-radius: 999px;
+        background: var(--border);
+        position: relative;
+        transition: background 0.15s;
+        flex: none;
+      }
+      #ai-toggle .sw::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition:
+          transform 0.15s,
+          background 0.15s;
+      }
+      #ai-toggle.on {
+        color: var(--text);
+        border-color: rgba(var(--accent-rgb), 0.45);
+      }
+      #ai-toggle.on .sw {
+        background: rgba(var(--accent-rgb), 0.35);
+      }
+      #ai-toggle.on .sw::after {
+        transform: translateX(11px);
+        background: var(--accent);
+      }
       .hbtn kbd {
         background: var(--panel2);
         border: 1px solid var(--border);
@@ -3911,6 +4061,7 @@
         ></button>
         <button id="theme-btn" class="hbtn" onclick="toggleTheme()" title="Toggle dark / light mode">☀️</button>
         <button class="hbtn" onclick="cycleAccent()" title="Cycle accent theme (Ember · Cyan · Emerald · Violet · Gold)">🎨</button>
+        <button id="ai-toggle" class="hbtn" onclick="toggleAIPlugin()">✨ AI</button>
         <button class="hbtn" onclick="openConnections()" title="AI model connections">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
@@ -3943,7 +4094,7 @@
       </footer>
     </div>
 
-    <button class="fab" onclick="toggleAssistant()">✨ AI Assistant</button>
+    <button class="fab ai-feature" id="ai-fab" onclick="toggleAssistant()">✨ AI Assistant</button>
 
     <div class="assistant" id="assistant">
       <div class="head">
@@ -4211,6 +4362,105 @@
         );
       }
 
+      // ---------- YAML syntax colouring ----------
+      // A tiny line-oriented tokenizer — no external library, because the whole UI
+      // ships embedded in the binary. Tokenizing runs on the RAW text and each token
+      // is escaped as it is emitted, so nothing here can inject markup.
+      const YAML_TOP_KEYS = new Set([
+        "apiVersion",
+        "kind",
+        "metadata",
+        "spec",
+        "status",
+        "data",
+        "stringData",
+        "type",
+        "rules",
+        "subjects",
+        "roleRef",
+        "items",
+      ]);
+      function yamlValue(v) {
+        if (!v) return "";
+        // Find a trailing comment, ignoring "#" that sits inside a quoted scalar.
+        let quote = null,
+          ci = -1;
+        for (let i = 0; i < v.length; i++) {
+          const c = v[i];
+          if (quote) {
+            if (c === quote) quote = null;
+          } else if (c === '"' || c === "'") quote = c;
+          else if (c === "#" && (i === 0 || /\s/.test(v[i - 1]))) {
+            ci = i;
+            break;
+          }
+        }
+        const body = ci < 0 ? v : v.slice(0, ci),
+          com = ci < 0 ? "" : v.slice(ci);
+        const t = body.trim(),
+          lead = body.slice(0, body.length - body.trimStart().length),
+          tail = body.slice(lead.length + t.length);
+        let inner;
+        if (!t) inner = "";
+        else if (/^(".*"|'.*')$/.test(t)) inner = `<span class="y-str">${esc(t)}</span>`;
+        else if (/^-?\d+(\.\d+)?$/.test(t)) inner = `<span class="y-num">${esc(t)}</span>`;
+        else if (/^(true|false|null|~)$/i.test(t))
+          inner = `<span class="y-bool">${esc(t)}</span>`;
+        else inner = esc(t);
+        return (
+          esc(lead) +
+          inner +
+          esc(tail) +
+          (com ? `<span class="y-com">${esc(com)}</span>` : "")
+        );
+      }
+      function highlightYAML(src) {
+        return (src || "")
+          .split("\n")
+          .map((line) => {
+            if (/^\s*#/.test(line)) return `<span class="y-com">${esc(line)}</span>`;
+            if (/^\s*---\s*$/.test(line))
+              return `<span class="y-doc">${esc(line)}</span>`;
+            const m = line.match(/^(\s*)(-\s+)?([\w.\-\/]+)(\s*:)(.*)$/);
+            if (m) {
+              const [, ind, dash, key, colon, rest] = m;
+              const top = !ind && !dash && YAML_TOP_KEYS.has(key);
+              return (
+                esc(ind) +
+                (dash ? `<span class="y-dash">${esc(dash)}</span>` : "") +
+                `<span class="y-key${top ? " y-top" : ""}">${esc(key)}</span>` +
+                esc(colon) +
+                yamlValue(rest)
+              );
+            }
+            const li = line.match(/^(\s*)(-\s*)(.*)$/);
+            if (li)
+              return (
+                esc(li[1]) +
+                `<span class="y-dash">${esc(li[2])}</span>` +
+                yamlValue(li[3])
+              );
+            return yamlValue(line);
+          })
+          .join("\n");
+      }
+      // Highlighting and contenteditable fight over the caret, so the two are modes:
+      // coloured + read-only by default, plain text while editing.
+      function setYAMLView(el, src, editing) {
+        el.classList.toggle("yaml-hl", !editing);
+        el.setAttribute("contenteditable", editing ? "true" : "false");
+        el.innerHTML = editing ? esc(src) : highlightYAML(src);
+      }
+      function toggleYAMLEdit(sel, btnSel) {
+        const el = $(sel);
+        if (!el) return;
+        const editing = el.getAttribute("contenteditable") !== "true";
+        setYAMLView(el, el.innerText, editing);
+        const b = $(btnSel);
+        if (b) b.textContent = editing ? "👁 View" : "✎ Edit";
+        if (editing) el.focus();
+      }
+
       // Parent-child navigation: collapsible groups with persisted open state.
       // Group order: Observe first, resource groups next (Platform right after
       // Network), Operate last — per operator preference.
@@ -4224,6 +4474,7 @@
               "clusters",
               "metrics",
               "alerts",
+              "changes",
               "quotas",
               "topology",
               "security",
@@ -4317,6 +4568,8 @@
           '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
         quotas:
           '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+        changes:
+          '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
         topology:
           '<circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9"/><path d="M12 12v3"/>',
         security:
@@ -4452,6 +4705,7 @@
           if (state.kind === "autoscaling") return renderAutoscaling();
           if (state.kind === "forwards") return renderForwards();
           if (state.kind === "audit") return renderAudit();
+          if (state.kind === "changes") return renderChanges();
           const res = await api(
             `/api/resources?kind=${state.kind}&namespace=${state.ns}`,
           );
@@ -4717,7 +4971,7 @@
         <div style="text-align:right;margin-top:4px"><button class="link" style="background:none;border:none;color:var(--accent);font-size:10px;cursor:pointer" onclick="go('alerts')">View All Intelligence ›</button></div>
       </div>
     </div>
-    <div class="cc-panel" style="margin-top:14px">
+    <div class="cc-panel ai-feature" style="margin-top:14px">
       <div class="cc-h">AI Briefing · Recommended Fixes <span class="spacer"></span><button class="link" onclick="ccBriefing(true)">↻ Regenerate</button></div>
       <div id="cc-brief"></div>
     </div>
@@ -4740,7 +4994,7 @@
       <div class="cc-panel">
         <div class="cc-h">Quick Commands</div>
         <button class="cc-cmd" onclick="talkToPilot()"><span class="cic">${CC_SVG.mic}</span> Start Voice Chat</button>
-        <button class="cc-cmd" onclick="toggleAssistant()"><span class="cic">${CC_SVG.spark}</span> Ask AI Assistant</button>
+        <button class="cc-cmd ai-feature" onclick="toggleAssistant()"><span class="cic">${CC_SVG.spark}</span> Ask AI Assistant</button>
         <button class="cc-cmd" onclick="go('security')"><span class="cic">${CC_SVG.shield}</span> Run Security Scan</button>
         <button class="cc-cmd" onclick="go('topology')"><span class="cic">${CC_SVG.globe}</span> Open Topology Map</button>
         <button class="cc-cmd" onclick="jvBriefing()"><span class="cic">${CC_SVG.play}</span> Executive Briefing</button>
@@ -4943,6 +5197,7 @@
           // hint — upgrade it once we know a model is connected.
           if (on) {
             state.aiEnabled = true;
+            applyAIVisibility();
             const bf = $("#cc-brief");
             if (bf && bf.dataset.st === "hint") ccBriefing(false);
           }
@@ -5270,7 +5525,9 @@
           api(`/api/summary?namespace=${state.ns}`).catch(() => null),
           api(`/api/metrics/nodes`).catch(() => ({ available: false, nodes: [] })),
           api(`/api/metrics/pods?namespace=${state.ns}`).catch(() => ({ pods: [] })),
-          api(`/api/alerts?namespace=${state.ns}`).catch(() => ({ alerts: [] })),
+          api(`/api/alerts?namespace=${state.ns}&correlate=0`).catch(() => ({
+          alerts: [],
+        })),
         ]);
         if (!s) return;
         // Same composite health score as the classic dashboard hero.
@@ -7143,7 +7400,7 @@
         $("#main").innerHTML =
           `<h2>Topology <span class="pill">${esc(ns)}</span>
     <span class="spacer" style="flex:1"></span>
-    <button class="btn ghost" style="margin-left:auto" onclick="explainTopology()">🧠 Explain</button></h2>
+    <button class="btn ghost ai-feature" style="margin-left:auto" onclick="explainTopology()">🧠 Explain</button></h2>
     ${state.ns ? "" : `<div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:10px">Showing <b>default</b> — pick a namespace in the header to graph another.</div>`}
     <div id="topo-explain"></div>
     <div id="topo"><div class="empty"><span class="spin"></span></div></div>`;
@@ -7467,7 +7724,7 @@
         $("#main").innerHTML =
           `<h2>Alerts <span class="pill">${esc(state.ns || "all namespaces")}</span>
     <span class="spacer" style="flex:1"></span>
-    <button class="btn" style="margin-left:auto" onclick="aiTriage()">🧠 AI Triage</button></h2>
+    <button class="btn ai-feature" style="margin-left:auto" onclick="aiTriage()">🧠 AI Triage</button></h2>
     <div id="alerts-body"><div class="empty"><span class="spin"></span></div></div>`;
         try {
           const rep = await api(`/api/alerts?namespace=${state.ns}`);
@@ -7478,7 +7735,8 @@
       <button data-f="critical" class="${alertFilter === "critical" ? "active" : ""}" onclick="setAlertFilter('critical')">🔴 Critical ${rep.critical}</button>
       <button data-f="warning" class="${alertFilter === "warning" ? "active" : ""}" onclick="setAlertFilter('warning')">🟡 Warning ${rep.warning}</button>
       <button data-f="info" class="${alertFilter === "info" ? "active" : ""}" onclick="setAlertFilter('info')">🔵 Info ${rep.info}</button>
-    </div><div id="alert-list"></div>`;
+      ${rep.acked ? `<button data-f="acked" class="${alertFilter === "acked" ? "active" : ""}" onclick="setAlertFilter('acked')">✓ Acked ${rep.acked}</button>` : ""}
+    </div><div id="alert-list"></div>${resolvedHTML(rep.resolved)}`;
           $("#alerts-body").innerHTML = h;
           paintAlerts();
         } catch (e) {
@@ -7494,8 +7752,12 @@
         paintAlerts();
       }
       function paintAlerts() {
-        const list = (window._alerts || []).filter(
-          (a) => alertFilter === "all" || a.severity === alertFilter,
+        const list = (window._alerts || []).filter((a) =>
+          alertFilter === "all"
+            ? true
+            : alertFilter === "acked"
+              ? a.acked
+              : a.severity === alertFilter && !a.acked,
         );
         const el = $("#alert-list");
         if (!list.length) {
@@ -7511,12 +7773,127 @@
             : "";
         const where =
           a.kind + (a.namespace ? " · " + a.namespace : "") + " · " + a.name;
-        return `<div class="alert ${esc(a.severity)}" ${target}>
+
+        // How long it has been firing is the first thing you want to know, and
+        // it is not the same as the object's age.
+        const firing = a.activeFor
+          ? `<span class="pill">${a.new ? "🆕 " : ""}firing ${esc(a.activeFor)}</span>`
+          : "";
+        const seen =
+          a.occurrences > 1 ? `<span class="pill">×${a.occurrences}</span>` : "";
+
+        // Suspects are the answer to "what changed?" — correlation, not cause,
+        // so the wording stays hedged.
+        const suspects = (a.suspects || []).length
+          ? `<div class="d suspects">🔎 just before this: ${(a.suspects || [])
+              .map(
+                (c) =>
+                  `<span class="mono">${esc(c.summary)}</span> <span class="dim">(${esc(c.kind)}, ${esc(c.ago)})</span>`,
+              )
+              .join(" · ")}</div>`
+          : "";
+
+        const ack = a.fingerprint
+          ? `<button class="btn ghost xs" onclick='event.stopPropagation();ackAlert("${esc(a.fingerprint)}",${a.acked ? "true" : "false"})'>${a.acked ? "unack" : "ack"}</button>`
+          : "";
+        const note = a.ackNote
+          ? `<div class="d dim">✓ acknowledged — ${esc(a.ackNote)}</div>`
+          : "";
+
+        return `<div class="alert ${esc(a.severity)}${a.acked ? " acked" : ""}" ${target}>
     <span class="bar"></span>
-    <div><div class="t"><span class="sev">${esc(a.severity)}</span>${esc(a.title)}</div>
-      <div class="d">${esc(a.detail || "")} — <span class="mono">${esc(where)}</span></div></div>
-    <div class="meta">${esc(a.category)}<br>${esc(a.age)}</div></div>`;
+    <div><div class="t"><span class="sev">${esc(a.severity)}</span>${esc(a.title)} ${firing} ${seen}</div>
+      <div class="d">${esc(a.detail || "")} — <span class="mono">${esc(where)}</span></div>
+      ${suspects}${note}</div>
+    <div class="meta">${esc(a.category)}<br>${esc(a.age)}<br>${ack}</div></div>`;
       }
+
+      // ackAlert triages an alert out of the way. The acknowledgement is
+      // dropped server-side if the alert resolves, so a recurrence comes back.
+      async function ackAlert(fingerprint, undo) {
+        try {
+          await api("/api/alerts/ack", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fingerprint, undo }),
+          });
+          toast(undo ? "Acknowledgement removed" : "Alert acknowledged");
+          renderAlerts();
+        } catch (e) {
+          toast("⚠️ " + e.message);
+        }
+      }
+      // resolvedHTML shows what stopped firing recently. Seeing a fix take is
+      // as much a part of triage as seeing the breakage.
+      function resolvedHTML(resolved) {
+        if (!resolved || !resolved.length) return "";
+        return `<h3 style="margin-top:18px">Recently resolved</h3>
+    <div class="resolved-list">${resolved
+      .map(
+        (r) =>
+          `<div class="alert resolved"><span class="bar"></span><div>
+        <div class="t">✅ ${esc(r.title)}</div>
+        <div class="d"><span class="mono">${esc(r.kind)}${r.namespace ? " · " + esc(r.namespace) : ""} · ${esc(r.name)}</span> — lasted ${esc(r.lasted)}</div>
+      </div></div>`,
+      )
+      .join("")}</div>`;
+      }
+
+      // ---------- what changed ----------
+      // The timeline answers the first question of most incidents. Every entry
+      // is derived from something the cluster already records: Helm's storage
+      // secrets, the ReplicaSet a rollout leaves behind, Argo's operation state.
+      let changeHours = 24;
+      const CHANGE_ICON = {
+        helm: "⎈",
+        rollout: "🚀",
+        gitops: "🔄",
+        node: "🖥",
+      };
+      async function renderChanges() {
+        $("#main").innerHTML =
+          `<h2>What changed <span class="pill">${esc(state.ns || "all namespaces")}</span>
+    <span class="spacer" style="flex:1"></span>
+    ${[1, 6, 24, 168]
+      .map(
+        (h) =>
+          `<button class="btn ghost${changeHours === h ? " active" : ""}" onclick="setChangeHours(${h})">${h < 24 ? h + "h" : h / 24 + "d"}</button>`,
+      )
+      .join(" ")}</h2>
+    <div id="changes-body"><div class="empty"><span class="spin"></span></div></div>`;
+        try {
+          const res = await api(
+            `/api/changes?namespace=${state.ns}&hours=${changeHours}`,
+          );
+          const list = res.changes || [];
+          if (!list.length) {
+            $("#changes-body").innerHTML =
+              `<div class="empty">Nothing changed in this window.</div>`;
+            return;
+          }
+          $("#changes-body").innerHTML = `<div class="timeline">${list
+            .map(
+              (c) => `<div class="tl-row">
+        <div class="tl-when">${esc(c.ago)}</div>
+        <div class="tl-dot">${CHANGE_ICON[c.source] || "•"}</div>
+        <div class="tl-what">
+          <div class="t">${esc(c.kind)} — <span class="mono">${esc(c.summary)}</span></div>
+          ${c.detail ? `<div class="d">${esc(c.detail)}</div>` : ""}
+        </div>
+        <div class="tl-ns">${esc(c.namespace || "cluster")}</div>
+      </div>`,
+            )
+            .join("")}</div>`;
+        } catch (e) {
+          $("#changes-body").innerHTML =
+            `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
+      }
+      function setChangeHours(h) {
+        changeHours = h;
+        renderChanges();
+      }
+
       function updateAlertBadge(rep) {
         const b = $("#alert-badge");
         if (rep.critical > 0) {
@@ -7541,7 +7918,11 @@
       }
       async function refreshAlertBadge() {
         try {
-          const rep = await api(`/api/alerts?namespace=${state.ns}`);
+          // correlate=0: the badge only needs counts, and correlation costs a
+          // Helm and ReplicaSet listing that would run on every poll.
+          const rep = await api(
+            `/api/alerts?namespace=${state.ns}&correlate=0`,
+          );
           updateAlertBadge(rep);
         } catch {}
       }
@@ -7676,10 +8057,7 @@
             `<button onclick='viewLogs("${r.namespace}","${r.name}")'>Logs</button>`,
           );
           a.push(
-            `<button onclick='aiTroubleshoot("${r.namespace}","${r.name}")'>✨ Diagnose</button>`,
-          );
-          a.push(
-            `<button onclick='quickForward("pod","${r.namespace}","${r.name}")'>🔀 Forward</button>`,
+            `<button class="ai-feature" onclick='aiTroubleshoot("${r.namespace}","${r.name}")'>✨ Diagnose</button>`,
           );
           a.push(
             `<button ${maskAttr("delete:pods")} onclick='del("Pod","${r.namespace}","${r.name}")'>Delete</button>`,
@@ -7697,6 +8075,9 @@
           a.push(
             `<button ${maskAttr("patch:deployments")} onclick='restart("${r.namespace}","${r.name}")'>Restart</button>`,
           );
+          a.push(
+            `<button ${maskAttr("delete:deployments")} onclick='delConfirm("Deployment","${r.namespace}","${r.name}")'>Delete</button>`,
+          );
         }
         if (
           k === "namespace" &&
@@ -7705,7 +8086,7 @@
           )
         ) {
           a.push(
-            `<button ${maskAttr("delete:namespaces")} onclick='del("Namespace","","${r.name}")'>Delete</button>`,
+            `<button ${maskAttr("delete:namespaces")} onclick='delConfirm("Namespace","","${r.name}")'>Delete</button>`,
           );
         }
         return a.join("");
@@ -7719,6 +8100,12 @@
             body: JSON.stringify({
               checks: [
                 { verb: "delete", resource: "pods", namespace: state.ns },
+                {
+                  verb: "delete",
+                  resource: "deployments",
+                  group: "apps",
+                  namespace: state.ns,
+                },
                 {
                   verb: "patch",
                   resource: "deployments",
@@ -7756,9 +8143,9 @@
             `/api/yaml?kind=${kind}&namespace=${ns}&name=${name}`,
           );
           $("#modal-body").innerHTML =
-            `<pre id="yaml-edit" contenteditable="true">${esc(j.yaml)}</pre><div id="m-review"></div>`;
+            `<pre id="yaml-edit" class="yaml-hl" contenteditable="false">${highlightYAML(j.yaml)}</pre><div id="m-review"></div>`;
           $("#modal-foot").innerHTML =
-            `<button class="btn ghost" onclick="closeModal()">Close</button><button class="btn ghost" onclick="showDiff('#yaml-edit','#m-review')">± Diff</button><button class="btn ghost" onclick="aiReviewInto('#yaml-edit','#m-review')">🧠 Review</button><button class="btn" onclick="applyEdited()">Apply Changes</button>`;
+            `<button class="btn ghost" onclick="closeModal()">Close</button><button class="btn ghost" id="yaml-edit-toggle" onclick="toggleYAMLEdit('#yaml-edit','#yaml-edit-toggle')">✎ Edit</button><button class="btn ghost" onclick="showDiff('#yaml-edit','#m-review')">± Diff</button><button class="btn ghost ai-feature" onclick="aiReviewInto('#yaml-edit','#m-review')">🧠 Review</button><button class="btn" onclick="applyEdited()">Apply Changes</button>`;
         } catch (e) {
           $("#modal-body").innerHTML =
             `<div class="empty">⚠️ ${esc(e.message)}</div>`;
@@ -7902,6 +8289,67 @@
         }
       }
 
+      // delConfirm is the heavyweight sibling of del(): for objects whose loss is not
+      // self-healing (a Deployment, a whole Namespace) the operator has to type the
+      // name before the button arms. Deleting a Pod stays a one-click confirm().
+      function delConfirm(kind, ns, name) {
+        const blast =
+          kind === "Namespace"
+            ? "This deletes <b>every resource inside it</b> — workloads, secrets, PVCs. It cannot be undone."
+            : kind === "Deployment"
+              ? "This removes the workload and all of its pods. It cannot be undone."
+              : "This cannot be undone.";
+        openModal(
+          `Delete ${kind}`,
+          `<div style="display:flex;flex-direction:column;gap:12px;padding:6px 2px">
+        <div style="font-size:14px">You are about to delete ${kind}
+          <span class="mono" style="color:var(--text)">${esc(name)}</span>${ns ? ` in namespace <span class="mono">${esc(ns)}</span>` : ""}.</div>
+        <div style="background:rgba(220,60,60,.10);border:1px solid rgba(220,60,60,.35);border-radius:6px;padding:10px 12px;font-size:13px;color:var(--text)">⚠️ ${blast}</div>
+        <label style="font-size:12px;color:var(--muted)">Type <span class="mono" style="color:var(--text)">${esc(name)}</span> to confirm</label>
+        <input id="del-confirm" placeholder="${esc(name)}" spellcheck="false" autocomplete="off"
+          style="background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-family:var(--mono);font-size:13px;outline:none">
+      </div>`,
+          `<button onclick="closeModal()">Cancel</button>
+       <button id="del-go" class="btn danger" disabled onclick="delConfirmGo()">Delete ${kind}</button>`,
+        );
+        delConfirm.pending = { kind, ns, name };
+        const input = $("#del-confirm"),
+          go = $("#del-go");
+        input.oninput = () => {
+          go.disabled = input.value.trim() !== name;
+        };
+        input.onkeydown = (e) => {
+          if (e.key === "Enter" && !go.disabled) delConfirmGo();
+        };
+        input.focus();
+      }
+      async function delConfirmGo() {
+        const t = delConfirm.pending;
+        if (!t) return;
+        const go = $("#del-go");
+        go.disabled = true;
+        go.textContent = "Deleting…";
+        try {
+          await api("/api/delete", {
+            method: "POST",
+            body: JSON.stringify({
+              kind: t.kind,
+              namespace: t.ns,
+              name: t.name,
+            }),
+          });
+          closeModal();
+          toast("Deleted " + t.name);
+          if (t.kind === "Namespace") await loadNamespaces();
+          render();
+        } catch (e) {
+          toast("⚠️ " + e.message);
+          go.disabled = false;
+          go.textContent = "Delete " + t.kind;
+        }
+        delConfirm.pending = null;
+      }
+
       // --- namespace create ---
       function openCreateNs() {
         openModal(
@@ -8005,7 +8453,7 @@
           a = [];
         if (k.startsWith("pod")) {
           a.push(
-            `<button class="btn" onclick='drawerDiagnose()'>✨ Diagnose</button>`,
+            `<button class="btn ai-feature" onclick='drawerDiagnose()'>✨ Diagnose</button>`,
           );
           a.push(
             `<button class="btn ghost" ${maskAttr("delete:pods")} onclick='drawerDelete()'>Delete</button>`,
@@ -8181,10 +8629,11 @@
             `/api/yaml?kind=${detail.kind}&namespace=${detail.ns}&name=${detail.name}`,
           );
           $("#d-body").innerHTML =
-            `<pre id="d-yaml" contenteditable="true" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;white-space:pre-wrap;font-family:var(--mono);font-size:12px">${esc(j.yaml)}</pre>
+            `<pre id="d-yaml" class="yaml-hl" contenteditable="false" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;white-space:pre-wrap;font-family:var(--mono);font-size:13px">${highlightYAML(j.yaml)}</pre>
       <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn ghost" id="d-yaml-toggle" onclick="toggleYAMLEdit('#d-yaml','#d-yaml-toggle')">✎ Edit</button>
         <button class="btn ghost" onclick="showDiff('#d-yaml','#d-review')">± Diff</button>
-        <button class="btn ghost" onclick="aiReviewInto('#d-yaml','#d-review')">🧠 Review</button>
+        <button class="btn ghost ai-feature" onclick="aiReviewInto('#d-yaml','#d-review')">🧠 Review</button>
         <button class="btn" onclick="drawerApplyYAML()">Apply Changes</button></div>
       <div id="d-review"></div>`;
         } catch (e) {
@@ -8233,7 +8682,7 @@
       <button class="btn ghost" onclick="copyLogs()" title="Copy visible lines">⧉ Copy</button>
       <button class="btn ghost" onclick="downloadLogs()" title="Download visible lines as a .log file">⬇ Download</button>
       <button class="btn ghost" onclick="toggleLogWide()" title="Toggle wide view">⤢</button>
-      <button class="btn ghost" onclick="aiSummarizeLogs()">🧠 Summarize</button>
+      <button class="btn ghost ai-feature" onclick="aiSummarizeLogs()">🧠 Summarize</button>
       ${multi ? `<button class="btn ghost" onclick="renderLogCompare()">⊞ Compare</button>` : ""}
       <span class="log-count" id="log-count"></span></div>
     <div id="log-ai"></div>
@@ -8461,9 +8910,7 @@
       }
       async function drawerDiagnose() {
         if (!state.aiEnabled) {
-          toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
-          );
+          toast(AI_OFF_MSG);
           return;
         }
         await aiTroubleshoot(detail.ns, detail.name);
@@ -8610,9 +9057,7 @@
         const q = preset || (inp && inp.value.trim());
         if (!q) return;
         if (!state.aiEnabled) {
-          toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
-          );
+          toast(AI_OFF_MSG);
           return;
         }
         state.chat.push({ role: "user", text: q });
@@ -8724,9 +9169,7 @@
         const desc = $("#gen-in").value.trim();
         if (!desc) return;
         if (!state.aiEnabled) {
-          toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
-          );
+          toast(AI_OFF_MSG);
           return;
         }
         $("#gen-out").innerHTML = `<span class="spin"></span>`;
@@ -8738,7 +9181,7 @@
           openModal(
             "Generated YAML",
             `<pre id="yaml-edit" contenteditable="true">${esc(j.yaml)}</pre><div id="m-review"></div>`,
-            `<button class="btn ghost" onclick="closeModal()">Close</button><button class="btn ghost" onclick="showDiff('#yaml-edit','#m-review')">± Diff</button><button class="btn ghost" onclick="aiReviewInto('#yaml-edit','#m-review')">🧠 Review</button><button class="btn" onclick="applyEdited()">Apply to Cluster</button>`,
+            `<button class="btn ghost" onclick="closeModal()">Close</button><button class="btn ghost" onclick="showDiff('#yaml-edit','#m-review')">± Diff</button><button class="btn ghost ai-feature" onclick="aiReviewInto('#yaml-edit','#m-review')">🧠 Review</button><button class="btn" onclick="applyEdited()">Apply to Cluster</button>`,
           );
           renderAI();
         } catch (e) {
@@ -8859,9 +9302,7 @@
 
       async function aiTroubleshoot(ns, name) {
         if (!state.aiEnabled) {
-          toast(
-            "Enable the AI Assistant: set ANTHROPIC_API_KEY, or run a local model (KUBEAURA_AI_PROVIDER=ollama)",
-          );
+          toast(AI_OFF_MSG);
           return;
         }
         openModal(
@@ -8905,6 +9346,7 @@
         try {
           const st = await api("/api/ai/status");
           state.aiEnabled = st.enabled;
+          applyAIVisibility();
           $("#ai-dot").className = "dot" + (st.enabled ? "" : " off");
           const m = $("#ai-model");
           if (m) {
@@ -8913,9 +9355,57 @@
               : "not configured";
             m.title = st.enabled
               ? "answering with " + st.provider + " — click to manage"
-              : "click to add a model connection";
+              : "AI is off — click to connect a model (optional)";
           }
+        } catch {
+          applyAIVisibility();
+        }
+      }
+      // AI is a plug-in, not a prerequisite: the operator decides whether the layer
+      // exists at all, and the choice sticks. Until they choose, we default to
+      // whatever the server reports — so a team with no key or local model never sees
+      // buttons that can only fail, and a team that has one gets them straight away.
+      const AI_PLUGIN_KEY = "kubeaura:ai-plugin";
+      function aiPluginPref() {
+        try {
+          return localStorage.getItem(AI_PLUGIN_KEY);
+        } catch {
+          return null;
+        }
+      }
+      function aiPluginOn() {
+        const p = aiPluginPref();
+        return p === null ? state.aiEnabled : p === "on";
+      }
+      function applyAIVisibility() {
+        const on = aiPluginOn();
+        document.body.classList.toggle("ai-off", !on);
+        const t = $("#ai-toggle");
+        if (t) {
+          t.classList.toggle("on", on);
+          t.innerHTML = `<span class="sw"></span>AI ${on ? "on" : "off"}`;
+          t.title = on
+            ? state.aiEnabled
+              ? "AI features are on — click to turn the whole layer off"
+              : "AI features are on but no model is connected — click the ⚙ to add one"
+            : "AI features are off — KubeAura works fully without them. Click to turn on.";
+        }
+      }
+      function toggleAIPlugin() {
+        const next = aiPluginOn() ? "off" : "on";
+        try {
+          localStorage.setItem(AI_PLUGIN_KEY, next);
         } catch {}
+        applyAIVisibility();
+        if (next === "on") {
+          // Turning the layer on with nothing behind it is a dead end, so go
+          // straight to the place where a model gets connected.
+          if (!state.aiEnabled) openConnections();
+        } else {
+          $("#assistant").classList.remove("open");
+          closeModal();
+          toast("AI features hidden — everything else works as before");
+        }
       }
       async function openConnections() {
         openModal(
@@ -8928,7 +9418,20 @@
       async function renderConnections() {
         try {
           const j = await api("/api/ai/connections");
-          let h = "";
+          let h = `<div class="sec"><h4>Set up AI — optional</h4>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">
+        AI is a plug-in. The <b>AI on/off switch</b> in the header hides or shows the whole layer, and
+        your choice is remembered — KubeAura is fully usable with it off: every view, action and report
+        works exactly the same. To power the extras, connect one of these:
+        <ul style="margin:8px 0 0;padding-left:18px">
+          <li><b>Fully local, no key</b> — run <span class="mono">ollama serve</span> and add an Ollama connection below
+            (or start the server with <span class="mono">KUBEAURA_AI_PROVIDER=ollama OLLAMA_HOST=http://localhost:11434</span>).</li>
+          <li><b>Self-hosted / any OpenAI-compatible endpoint</b> — LocalAI, LM Studio, vLLM, OpenRouter
+            (<span class="mono">OPENAI_BASE_URL</span> + <span class="mono">OPENAI_API_KEY</span>).</li>
+          <li><b>Anthropic</b> — set <span class="mono">ANTHROPIC_API_KEY</span>.</li>
+        </ul>
+        Keys entered here live in memory only — they are never written to the config file.
+      </div></div>`;
           if (j.connections.length) {
             h += `<div class="sec"><h4>Configured backends</h4>`;
             for (const c of j.connections) {
@@ -9094,7 +9597,7 @@
       }
 
       const AI_OFF_MSG =
-        "Enable the AI Assistant: add a model connection (⚙ in the Assistant) — e.g. a local Ollama model";
+        "AI is off — click “Enable AI” (bottom right) to connect a model. Everything else works without it.";
       // AI Triage: turn all current alerts into a prioritized action plan.
       async function aiTriage() {
         if (!state.aiEnabled) {
@@ -9363,7 +9866,11 @@
           ? all.filter((c) => fuzzy(q, c.label + " " + c.sub))
           : all;
         // If the query looks like a natural-language question, offer Ask-AI at the top.
-        if (q && (q.length > 8 || /\s/.test(q) || /\?$/.test(q))) {
+        if (
+          aiPluginOn() &&
+          q &&
+          (q.length > 8 || /\s/.test(q) || /\?$/.test(q))
+        ) {
           items = [
             {
               ic: "🧠",
@@ -9711,6 +10218,9 @@
         renderNav();
         renderAI();
         jvStatusPoll();
+        // Paint the AI switch from the remembered preference before the status call
+        // lands, so the layer never flashes in and back out on a cold load.
+        applyAIVisibility();
         bootStep("cfg", "on");
         api("/api/health")
           .then((h) => {
