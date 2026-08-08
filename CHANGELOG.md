@@ -7,6 +7,85 @@ they do, it will say so here.
 
 ## [Unreleased]
 
+### Added
+
+- **Alerts remember.** Rule evaluation was stateless: every refresh produced a
+  fresh list with no way to tell a problem that started two minutes ago from one
+  that has been firing for three days. Alerts now carry a stable fingerprint and
+  the tracker behind it reports how long each has been firing, how many
+  evaluations it survived, and which are new. Within a severity band the newest
+  sort first — what just broke is what you want to see. Acknowledge one and it
+  sinks out of the way; the acknowledgement is dropped automatically when the
+  alert resolves, so a recurrence is surfaced again rather than staying silently
+  triaged. Resolved alerts are listed for 30 minutes, because seeing a fix take
+  is part of triage too. State is in memory and per-process, like the rest of
+  KubeAura.
+- **A "what changed?" view.** The first question of most incidents had no answer
+  anywhere in the tool. `/api/changes` and the new Changes view build a timeline
+  from what the cluster already records: every Helm revision with its deploy
+  timestamp, every Deployment rollout (the ReplicaSet a rollout leaves behind
+  dates it, so `kubectl set image` shows up as readily as a Helm upgrade), Argo
+  CD sync completions, and nodes joining. No new dependency and nothing to
+  install — the data was being read already and discarded.
+- **Alerts name their suspects.** Each alert is correlated against changes that
+  landed in the 15 minutes before it started firing. A change to the alerting
+  object itself outranks one that merely shares its namespace, matched through
+  the generated pod-name suffix so `api-gateway-7d98b64fc9-x2k1p` is not mistaken
+  for `api`. Advisory `info` alerts are left alone — they are standing advice,
+  not incidents, and pointing at the preceding deploy would imply a cause that
+  is not there. It is labelled as correlation, because that is what it is.
+- **Prometheus is queried, not just discovered.** KubeAura already found
+  Prometheus and only ever deep-linked to it, which left the tool with no past:
+  metrics-server holds about a minute of data, so "is this getting worse?" was
+  unanswerable. `/api/prom/query`, `/api/prom/history` and `/api/prom/status`
+  reach it through the API server's service proxy — the in-cluster service URL
+  is not routable from a laptop, but the proxy is, and it reuses the kubeconfig
+  credentials that are already loaded. That means it works wherever kubectl
+  works, with no port-forward, no configuration and no extra listening socket.
+  Curated queries cover pod/node CPU and memory and restart counts so common
+  questions need no PromQL. Clusters without Prometheus report `available:
+  false` and the UI hides the charts, exactly as it already does for
+  metrics-server.
+
+### Security
+
+- **The evidence envelope now covers every model call, not two of them.**
+  v0.2.0 introduced redaction, caps and hash-stamped disclosure, but only wired
+  them into `/api/ai/troubleshoot` and `/api/ai/logsummary`. The other six AI
+  endpoints built their payload inline and sent it with no cap, no scrubbing,
+  no envelope and no audit line.
+
+  The consequence that matters: **AI manifest review sent Secret contents to
+  your model provider.** Asking KubeAura to review a `Secret` fetched the live
+  object, which is stripped of server noise but nothing else, and posted its
+  entire base64 `data` block to Anthropic or OpenAI — with no record that it
+  had happened. If you reviewed a Secret with a hosted backend configured,
+  treat those values as disclosed to that provider and rotate them.
+
+  Reviewing a Secret now sends its keys and never its values. Reviewing
+  anything else applies the same rules the pod path already applied — inline
+  `env` values dropped, credential-shaped annotations dropped, ConfigMap values
+  scrubbed — matched structurally, so they hold for every kind and for pod
+  templates nested at any depth.
+
+### Changed
+
+- **Cluster snapshots are capped and scrubbed.** `/api/ai/query`, its streaming
+  twin, `/api/ai/triage` and `?explain=1` on topology now go through the
+  evidence layer. These carry flat summary rows rather than objects, so nothing
+  here was leaking a pod spec — but event messages are verbatim controller
+  output and routinely quote a connection string, and 5 kinds × 200 rows had no
+  byte ceiling at all. Snapshots now cap at 48 KiB, trimming the largest list
+  first so the small load-bearing ones survive, and free text is scrubbed.
+- **Every AI call is audited.** Each one records the evidence hash, the byte
+  count and the destination backend — never the evidence itself. `ai.generate`
+  gets a line too, though it carries no cluster state.
+- **Preview works everywhere.** `"preview": true` on review and query, and
+  `?preview=1` on triage, return the envelope without contacting a model.
+- The streaming query endpoint emits an `{"type":"evidence"}` event before the
+  first token, so the disclosure arrives while the answer is still being
+  written.
+
 ## [v0.2.0] — 2026-07-27
 
 Four features and one thing that should never have shipped the way it did.

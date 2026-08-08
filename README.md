@@ -396,8 +396,9 @@ Config → Cluster → Access → Operate.
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Dashboard**      | The **Command Center**: AI core overview, live intelligence feed, active agents, mission timeline, quick commands, and system-monitor rings — plus pod-phase and deployment-health charts, a 12-hour event timeline, a restart leaderboard, and a live alerts panel. |
 | **Fleet**          | **Every kubeconfig context at once**, queried in parallel: reachability, server version, API latency, node/pod health and alert counts per cluster, with fleet-wide totals. A context that will not connect shows its error instead of blanking the page. Click a row to make it active. |
-| **Metrics**        | Node CPU/memory **heatmaps**, top pods by CPU/memory, a node utilization table, and per-service live resource levels. (needs metrics-server)                                                                                                                     |
-| **Alerts (Pulse)** | One triage list of everything wrong: crashloops, OOMKills, degraded workloads, node pressure, failed jobs, unbound PVCs, recent warning events — plus **cert-manager certificates about to expire**. Filter by severity; click an alert to jump to the resource. |
+| **Metrics**        | Node CPU/memory **heatmaps**, top pods by CPU/memory, a node utilization table, and per-service live resource levels. (needs metrics-server). When the cluster has **Prometheus**, KubeAura queries it for history — see below.                                  |
+| **Alerts (Pulse)** | One triage list of everything wrong: crashloops, OOMKills, degraded workloads, node pressure, failed jobs, unbound PVCs, recent warning events — plus **cert-manager certificates about to expire**. Alerts are **tracked across refreshes**: each shows how long it has been firing, whether it is new, and **what changed just before it started**. Acknowledge one to sink it out of the way (the ack drops itself when the alert resolves, so a recurrence comes back). Recently resolved alerts are listed for 30 minutes. |
+| **Changes**        | **"What changed?"** — a timeline of Helm installs and upgrades, Deployment rollouts, Argo CD syncs, and nodes joining, over 1h / 6h / 1d / 7d. Built entirely from what the cluster already records, so it needs nothing installed and works on any cluster. |
 | **Quotas**         | Per-namespace **ResourceQuota dashboard**: progress bars for pods / CPU / memory (requests and limits) vs. hard limits, peak-utilization summary cards, and near-limit highlighting.                                                                             |
 | **Topology**       | Interactive **Ingress → Service → Workload → Pod** graph on a dot-grid canvas with workload replica health, `NoEndpoints` service detection, hover edge-highlighting, and node tooltips. **🧠 Explain** describes the architecture.                              |
 | **Security**       | **Image CVE reports read from the Trivy Operator** (when installed): severity summary cards, severity-mix donut, most-exposed-workloads bars, and per-workload findings with fix versions.                                                                       |
@@ -671,10 +672,25 @@ internal hostnames, customer identifiers, and credentials an application printed
 itself. Disclosing that in a README is not the same as controlling it, so the
 boundary is enforced in code and shown in the UI.
 
-Before any troubleshoot or log-summary call, KubeAura builds an **evidence
+Before **every** call that carries cluster state, KubeAura builds an **evidence
 envelope**: the redacted payload plus a description of it. If the model runs off
 your machine, the envelope is shown for approval before anything is sent. If the
-model is local, it is shown alongside the answer instead.
+model is local, it is shown alongside the answer instead. Every call is written
+to the audit trail by hash and byte count, whether or not you look at it.
+
+| Endpoint                | Carries                       | Envelope |
+| ----------------------- | ----------------------------- | -------- |
+| `/api/ai/troubleshoot`  | pod spec, events, logs        | ✅ `troubleshoot` |
+| `/api/ai/logsummary`    | container logs                | ✅ `logsummary` |
+| `/api/ai/review`        | a manifest, live or pasted    | ✅ `review` |
+| `/api/ai/query`(`/stream`) | cluster summary + resource rows | ✅ `query` |
+| `/api/ai/triage`        | alerts + summary              | ✅ `triage` |
+| `/api/topology?explain=1` | the namespace graph         | ✅ `topology` |
+| `/api/ai/generate`      | nothing from the cluster — your description only | audit line only |
+
+Preview any of them without making the call: send `"preview": true` on the
+review, troubleshoot, log-summary and query endpoints, or `?preview=1` on
+triage. You get the envelope back and no model is contacted.
 
 What is removed, always, by rule rather than by guessing whether a value "looks
 secret":
@@ -686,11 +702,17 @@ secret":
 | `log-byte-cap`       | Logs are capped at **32 KiB**, keeping the newest lines.                            |
 | `event-cap`          | Events are capped at **40 events / 16 KiB**, newest first.                          |
 | `log-scrubbed`       | Private keys, JWTs, `Authorization:` headers, bearer tokens, AWS/GitHub/Slack tokens, URL credentials, and `KEY=value` credential pairs are replaced in log and event text. |
+| `secret-data`        | Reviewing a `Secret` sends its **keys** and never its `data`/`stringData` values. |
+| `free-text-secret`   | The same scrubbers run over event messages, alert details, resource labels and ConfigMap values — every place a workload writes text KubeAura then forwards. |
+| `sensitive-label`    | A label whose *key* matches token/secret/password/credential/apikey has its value dropped. |
+| `manifest-byte-cap`  | A reviewed manifest is capped at **64 KiB**, keeping the top (kind and metadata). |
+| `snapshot-byte-cap`  | A cluster snapshot is capped at **48 KiB**; the largest resource list is halved until it fits, so the small load-bearing lists survive. |
 
-Secret and ConfigMap **contents are never read** — not here, not anywhere in
-KubeAura. Secret *references* survive, because a name is not a body and a
-diagnosis often turns on one ("the pod reads `DATABASE_URL` from `app-secrets`,
-which does not exist").
+A Secret's **contents never reach a model.** Its *keys* and *references* do,
+because a name is not a body and a diagnosis often turns on one ("the pod reads
+`DATABASE_URL` from `app-secrets`, which does not exist"). A ConfigMap's values
+are sent — it is not a secret store — but they are scrubbed first, because in
+practice a ConfigMap is where a leaked credential most often actually lives.
 
 The envelope reports the resource kind/namespace/name/UID, the fields included,
 every rule that fired with its count and byte total, the log window, the exact
@@ -698,16 +720,42 @@ number of bytes leaving the machine, the destination backend, and a **SHA-256 of
 the payload**. That hash is written to the audit trail next to the diagnosis, so
 you can tie a conclusion back to its inputs without keeping the inputs anywhere.
 
-The structured rules carry a guarantee: the payload is built from an explicit
-allow-list, so a new field in a future client-go cannot start being transmitted
-silently. The regex scrubbers over free text are heuristics — they reduce
-exposure in unstructured log output, they do not eliminate it.
+The structured rules carry a guarantee. For a pod, the payload is built from an
+explicit allow-list, so a new field in a future client-go cannot start being
+transmitted silently. A manifest review cannot work that way — the point is to
+show the model the document you wrote, including CRD fields KubeAura has no
+model for — so there the rules are matched by key while walking the document,
+which means they apply to every kind and to pod templates nested at any depth.
+The regex scrubbers over free text are heuristics: they reduce exposure in
+unstructured output, they do not eliminate it.
 
 Sharing an instance with a team changes the threat model completely — see
 [Run a shared instance in-cluster](#run-a-shared-instance-in-cluster-optional).
 Found a vulnerability? [SECURITY.md](SECURITY.md) has the reporting process.
 
 ---
+
+### Prometheus (optional, zero-config)
+
+Every other view in KubeAura answers "what is true now". metrics-server holds
+about a minute of data, so "is this getting worse?" and "was it like this
+yesterday?" had no answer anywhere in the tool.
+
+If the cluster has Prometheus, KubeAura finds it by service name and queries it
+— no configuration, no port-forward, nothing to install:
+
+| Endpoint | What it does |
+| -------- | ------------ |
+| `/api/prom/status` | Whether a Prometheus is present **and answering**. The UI hides trend charts when it is not, the same way it already does for metrics-server. |
+| `/api/prom/query?q=…` | Any PromQL. Add `range=1&hours=6` for a series instead of a point. |
+| `/api/prom/history?kind=…` | Curated series — `pod-cpu`, `pod-memory`, `node-cpu`, `node-memory`, `restarts` — so the common questions need no PromQL. |
+
+Requests go through the **API server's service proxy** rather than a direct
+dial. The in-cluster service URL (`http://prometheus.monitoring.svc:9090`) is
+not routable from an operator's laptop, but the proxy is, and it reuses the
+kubeconfig credentials already loaded — so this works wherever `kubectl` works,
+with no extra listening socket and no credentials of its own. Whatever your
+kubeconfig may read, KubeAura may read; nothing more.
 
 ## Architecture
 
