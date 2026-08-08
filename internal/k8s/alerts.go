@@ -2,6 +2,8 @@ package k8s
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -26,7 +28,37 @@ type Alert struct {
 	Name      string `json:"name"`
 	Title     string `json:"title"`
 	Detail    string `json:"detail"`
-	Age       string `json:"age"`
+	Age       string `json:"age"` // age of the *object*, not of the alert
+
+	// Fingerprint identifies the problem across evaluations. It deliberately
+	// excludes Detail and Severity: "5 container restarts" becoming "6", or a
+	// warning crossing a threshold into critical, is the same problem getting
+	// worse, not a new one. Without that, nothing about an alert could be
+	// remembered between two refreshes.
+	Fingerprint string `json:"fingerprint"`
+
+	// The fields below are filled in by an alertstate.Tracker, not by rule
+	// evaluation, and are empty when alerts are evaluated without one (the
+	// fleet overview, which only wants counts).
+	FirstSeen   time.Time `json:"firstSeen,omitempty"`
+	LastSeen    time.Time `json:"lastSeen,omitempty"`
+	ActiveFor   string    `json:"activeFor,omitempty"`   // human-readable, e.g. "12m"
+	Occurrences int       `json:"occurrences,omitempty"` // evaluations it appeared in
+	New         bool      `json:"new,omitempty"`         // first seen within newAlertWindow
+	Acked       bool      `json:"acked,omitempty"`
+	AckNote     string    `json:"ackNote,omitempty"`
+
+	// Suspects are cluster changes that landed shortly before this alert
+	// started firing — a lead, not a verdict. Filled in by CorrelateChanges.
+	Suspects []Change `json:"suspects,omitempty"`
+}
+
+// fingerprint builds the stable identity for an alert. Two alerts from the
+// same rule about the same object collapse to one entry with a count.
+func (a Alert) fingerprint() string {
+	sum := sha256.Sum256([]byte(strings.Join(
+		[]string{a.Category, a.Kind, a.Namespace, a.Name, a.Title}, "\x00")))
+	return hex.EncodeToString(sum[:])[:16]
 }
 
 // AlertReport is the alert list plus per-severity counts for badges.
@@ -35,6 +67,27 @@ type AlertReport struct {
 	Critical int     `json:"critical"`
 	Warning  int     `json:"warning"`
 	Info     int     `json:"info"`
+
+	// Filled in by an alertstate.Tracker. Acked counts alerts the operator has
+	// already triaged — the number that makes a 200-row list workable is the
+	// one that is *not* acked. Resolved lists what stopped firing since the
+	// previous evaluation, which is how you tell a fix took.
+	Acked    int        `json:"acked"`
+	New      int        `json:"new"`
+	Resolved []Resolved `json:"resolved,omitempty"`
+}
+
+// Resolved is an alert that was firing and no longer is.
+type Resolved struct {
+	Fingerprint string    `json:"fingerprint"`
+	Severity    string    `json:"severity"`
+	Kind        string    `json:"kind"`
+	Namespace   string    `json:"namespace"`
+	Name        string    `json:"name"`
+	Title       string    `json:"title"`
+	FirstSeen   time.Time `json:"firstSeen"`
+	ResolvedAt  time.Time `json:"resolvedAt"`
+	Lasted      string    `json:"lasted"`
 }
 
 // thresholds for the resource-pressure rules.
@@ -117,6 +170,12 @@ func (c *Client) AlertsContext(cx context.Context, namespace string) (*AlertRepo
 	// that the object's own status may not still reflect.
 	if evs, err := c.cs.CoreV1().Events(namespace).List(cx, metav1.ListOptions{}); err == nil {
 		eventAlerts(evs.Items, add)
+	}
+
+	// Stamp identity before sorting so every consumer, tracked or not, can
+	// refer to an alert by something stable.
+	for i := range rep.Alerts {
+		rep.Alerts[i].Fingerprint = rep.Alerts[i].fingerprint()
 	}
 
 	rank := map[string]int{"critical": 0, "warning": 1, "info": 2}
