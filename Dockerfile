@@ -1,8 +1,9 @@
 # ---- build stage ----
-# Pinned to the patch release go.mod requires: the official images set
-# GOTOOLCHAIN=local, so a 1.26.4 base cannot auto-fetch 1.26.5 and the build
-# fails outright.
-FROM golang:1.26.5 AS build
+# Pinned to the patch release go.mod requires, and it has to move with it: the
+# official images set GOTOOLCHAIN=local, so a base older than the `go` directive
+# cannot auto-fetch the newer toolchain and the build fails outright. Bumping
+# go.mod without bumping this line is what broke the v0.3.0 image.
+FROM golang:1.26.6 AS build
 WORKDIR /src
 
 # Cache module downloads

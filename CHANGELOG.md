@@ -5,6 +5,18 @@ All notable changes to KubeAura. The format follows
 [SemVer](https://semver.org). Pre-1.0, minor versions may break things — when
 they do, it will say so here.
 
+## [v0.3.1] — 2026-08-27
+
+### Fixed
+
+- **The v0.3.0 container image never built.** The Dockerfile pins the Go base
+  image to the patch release `go.mod` asks for, and the official images set
+  `GOTOOLCHAIN=local` — so moving the `go` directive to 1.26.6 without moving
+  the base image left `go mod download` refusing to run. Binaries published; the
+  image did not. The two pins now carry a comment explaining that they move
+  together. v0.3.1 is v0.3.0 plus this one-line fix; there is no image for
+  v0.3.0, so `helm install` and the in-cluster manifests want 0.3.1.
+
 ## [v0.3.0] — 2026-08-27
 
 ### Added
