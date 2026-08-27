@@ -5,10 +5,30 @@ All notable changes to KubeAura. The format follows
 [SemVer](https://semver.org). Pre-1.0, minor versions may break things — when
 they do, it will say so here.
 
-## [Unreleased]
+## [v0.3.0] — 2026-08-27
 
 ### Added
 
+- **The tables refresh themselves.** Redeploy something and the resource view
+  went on showing the old pods until you reloaded the page by hand — the one
+  moment you are watching the screen was the one moment it lied to you. Resource
+  views now re-poll every 10 seconds and swap the rows in place, so scroll
+  position and the header survive the update. Refreshing pauses whenever it
+  would yank the ground away: a hidden tab, an open modal or drawer, a selection
+  you are reading, or a table you have paged past the first screen of. A Live
+  control in the header pauses and resumes it, and remembers which you chose.
+- **The cluster and namespace pickers remember.** Re-picking both on every
+  reload was pure friction. The namespace is remembered per cluster — `prod` in
+  one and `default` in another are different working contexts, and carrying one
+  across clusters is how people act on the wrong one — and is validated against
+  the live list on restore, so a namespace deleted since falls back to "All
+  namespaces" instead of quietly querying nothing. The active cluster lives in
+  the server process, which means it survived a reload but not a restart, and a
+  second browser silently inherited whatever the last one picked; the remembered
+  choice is now re-asserted on boot, so the selection belongs to the operator
+  rather than to the process. The URL hash carries the namespace too
+  (`#pods?ns=prod`), so a bookmark or a link pasted to a colleague lands where
+  the sender meant.
 - **Alerts remember.** Rule evaluation was stateless: every refresh produced a
   fresh list with no way to tell a problem that started two minutes ago from one
   that has been firing for three days. Alerts now carry a stable fingerprint and
