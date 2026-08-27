@@ -1,10 +1,12 @@
 module github.com/devganeshg/kubeaura
 
-go 1.26.5
+go 1.26.6
 
-// 1.26.5 rather than 1.26.0: earlier patch releases carry GO-2026-5856, an
-// Encrypted Client Hello privacy leak in crypto/tls that this binary reaches
-// through every outbound HTTPS call. Go downloads a matching toolchain
+// 1.26.6 rather than 1.26.0: earlier patch releases carry a run of standard
+// library advisories this binary reaches directly — GO-2026-5856, an Encrypted
+// Client Hello privacy leak in crypto/tls, plus GO-2026-6089/6090/6218 and
+// GO-2026-5972 in net/http, crypto/tls, net/url and encoding/asn1, all on the
+// path of every outbound HTTPS call. Go downloads a matching toolchain
 // automatically, so this does not ask contributors to install anything.
 
 require (

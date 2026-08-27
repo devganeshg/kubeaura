@@ -69,6 +69,11 @@ they do, it will say so here.
 
 ### Security
 
+- **Go toolchain moved to 1.26.6.** Five standard library advisories landed
+  against 1.26.5 — GO-2026-6089, GO-2026-6090 and GO-2026-5026 in `net/http`,
+  GO-2026-6218 in `net/url`, GO-2026-5972 in `encoding/asn1` — on the path of
+  every outbound HTTPS call this binary makes. Nothing in KubeAura's own code
+  changed; the released binaries are simply built with the fixed toolchain.
 - **The evidence envelope now covers every model call, not two of them.**
   v0.2.0 introduced redaction, caps and hash-stamped disclosure, but only wired
   them into `/api/ai/troubleshoot` and `/api/ai/logsummary`. The other six AI
