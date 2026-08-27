@@ -3008,6 +3008,37 @@
         cursor: pointer;
         font-size: 12px;
       }
+      #live-btn.on {
+        color: var(--text);
+        border-color: rgba(var(--accent-rgb), 0.5);
+      }
+      #live-btn.on svg {
+        animation: live-spin 6s linear infinite;
+      }
+      @keyframes live-spin {
+        to { transform: rotate(360deg); }
+      }
+      /* the pulse that fires each time rows are swapped in */
+      .live-dot {
+        display: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        margin-left: 8px;
+        vertical-align: middle;
+        background: rgb(var(--accent-rgb));
+      }
+      .live-dot.beat {
+        display: inline-block;
+        animation: live-beat 1s ease-out;
+      }
+      @keyframes live-beat {
+        0% { transform: scale(2.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.35; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #live-btn.on svg, .live-dot.beat { animation: none; }
+      }
       .hbtn:hover {
         color: var(--text);
         border-color: rgba(var(--accent-rgb), 0.4);
@@ -4059,6 +4090,10 @@
           title="Cluster alerts"
           style="display: none"
         ></button>
+        <button id="live-btn" class="hbtn" onclick="toggleLive()" title="Auto-refresh">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 3v6h-6"/></svg>
+          <span class="hbtn-txt">Live</span>
+        </button>
         <button id="theme-btn" class="hbtn" onclick="toggleTheme()" title="Toggle dark / light mode">☀️</button>
         <button class="hbtn" onclick="cycleAccent()" title="Cycle accent theme (Ember · Cyan · Emerald · Violet · Gold)">🎨</button>
         <button id="ai-toggle" class="hbtn" onclick="toggleAIPlugin()">✨ AI</button>
@@ -4646,11 +4681,8 @@
         // shell (mic + floating answer card) on every view instead.
         if (kind === "pilot") kind = "dashboard";
         state.kind = kind;
-        // Deep-linkable views: keep the URL hash in sync (e.g. /#pilot).
-        try {
-          if (location.hash.slice(1) !== kind)
-            history.replaceState(null, "", "#" + kind);
-        } catch {}
+        // Deep-linkable views: keep the URL hash in sync (e.g. /#pods?ns=prod).
+        syncHash();
         renderNav();
         animateMain();
         updateAICtx();
@@ -4683,6 +4715,7 @@
       }
 
       async function render() {
+        stopLive();
         if (pilotTimer) {
           clearInterval(pilotTimer);
           pilotTimer = null;
@@ -4706,26 +4739,128 @@
           if (state.kind === "forwards") return renderForwards();
           if (state.kind === "audit") return renderAudit();
           if (state.kind === "changes") return renderChanges();
-          const res = await api(
-            `/api/resources?kind=${state.kind}&namespace=${state.ns}`,
-          );
-          // Zero-config: enrich the pods table with live CPU/memory usage inline.
-          window.podUsage = null;
-          if (state.kind === "pods") {
-            try {
-              const m = await api(`/api/metrics/pods?namespace=${state.ns}`);
-              const map = {};
-              (m.pods || []).forEach(
-                (p) => (map[p.namespace + "/" + p.name] = p),
-              );
-              window.podUsage = map;
-            } catch {}
-          }
+          const res = await fetchResources();
           renderTable(res.items, res.continue);
+          startLive();
         } catch (e) {
           m.innerHTML = `<div class="empty">⚠️ ${esc(e.message)}</div>`;
         }
       }
+
+      // fetchResources pulls the current view's rows, plus the inline pod usage the
+      // table renders alongside them. Shared by the first paint and every live tick
+      // so the two can never drift apart.
+      async function fetchResources() {
+        const res = await api(
+          `/api/resources?kind=${state.kind}&namespace=${state.ns}`,
+        );
+        // Zero-config: enrich the pods table with live CPU/memory usage inline.
+        window.podUsage = null;
+        if (state.kind === "pods") {
+          try {
+            const m = await api(`/api/metrics/pods?namespace=${state.ns}`);
+            const map = {};
+            (m.pods || []).forEach((p) => (map[p.namespace + "/" + p.name] = p));
+            window.podUsage = map;
+          } catch {}
+        }
+        return res;
+      }
+
+      // ---------- live refresh ----------
+      // Operators kept redeploying and then staring at a stale table. The resource
+      // views now re-poll themselves in the background and swap the rows in place, so
+      // a rollout shows up without a manual reload. Paused whenever a refresh would
+      // yank the ground out from under the user: hidden tab, open modal or drawer,
+      // an active selection, or a table the user has paginated past page one.
+      const LIVE_MS = 10000;
+      let liveTimer = null;
+      let livePaged = false;
+      let liveOn = localStorage.getItem("kp-live") !== "0";
+
+      function stopLive() {
+        if (liveTimer) {
+          clearInterval(liveTimer);
+          liveTimer = null;
+        }
+      }
+      function startLive() {
+        stopLive();
+        livePaged = false;
+        if (liveOn) liveTimer = setInterval(liveTick, LIVE_MS);
+        paintLiveBtn();
+      }
+      function liveBlocked() {
+        if (document.hidden || livePaged) return true;
+        if ($("#modal-bg").classList.contains("open")) return true;
+        if ($("#drawer").classList.contains("open")) return true;
+        const sel = window.getSelection();
+        return !!(sel && !sel.isCollapsed && $("#main").contains(sel.anchorNode));
+      }
+      async function liveTick() {
+        if (liveBlocked()) return;
+        const kind = state.kind,
+          ns = state.ns;
+        try {
+          const res = await fetchResources();
+          // The view may have changed while the request was in flight — drop it.
+          if (kind !== state.kind || ns !== state.ns || liveBlocked()) return;
+          swapRows(res.items, res.continue);
+        } catch {
+          // A transient API error just means this tick is skipped; the next one
+          // retries. Blanking a working table over one failed poll would be worse.
+        }
+      }
+      // swapRows replaces only the table body and the row count, so scroll position
+      // and the header row survive the update.
+      function swapRows(rows, cont) {
+        const body = document.querySelector("#main tbody");
+        const fresh = tableHTML(rows, true);
+        if (!body || !/<tbody>/.test(fresh)) {
+          renderTable(rows, cont);
+          return;
+        }
+        body.innerHTML = fresh
+          .replace(/^[\s\S]*?<tbody>/, "")
+          .replace(/<\/tbody>[\s\S]*$/, "");
+        const pill = document.querySelector("#main h2 .pill");
+        if (pill) pill.textContent = rows.length + (cont ? "+" : "");
+        stampLive();
+      }
+      function stampLive() {
+        const el = $("#live-dot");
+        if (!el) return;
+        el.classList.remove("beat");
+        void el.offsetWidth;
+        el.classList.add("beat");
+        el.title =
+          "Live — last updated " + new Date().toLocaleTimeString();
+      }
+      function paintLiveBtn() {
+        const b = $("#live-btn");
+        if (!b) return;
+        b.classList.toggle("on", liveOn);
+        b.title = liveOn
+          ? `Auto-refresh on (every ${LIVE_MS / 1000}s) — click to pause`
+          : "Auto-refresh paused — click to resume";
+      }
+      function toggleLive() {
+        liveOn = !liveOn;
+        localStorage.setItem("kp-live", liveOn ? "1" : "0");
+        paintLiveBtn();
+        if (!liveOn) {
+          stopLive();
+          paintLiveBtn();
+          toast("Auto-refresh paused");
+        } else {
+          render();
+          toast("Auto-refresh on");
+        }
+      }
+      // Coming back to the tab should not cost a full poll interval of staleness.
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && liveTimer) liveTick();
+      });
 
       // ---------- chart primitives (dependency-free inline SVG) ----------
       const PALETTE = [
@@ -7933,7 +8068,7 @@
             ? ` <button class="btn" style="float:right" ${maskAttr("create:namespaces")} onclick="openCreateNs()">＋ Create Namespace</button>`
             : "";
         let h =
-          `<h2>${cap(state.kind)} <span class="pill">${rows.length}${cont ? "+" : ""}</span>${mk}</h2>` +
+          `<h2>${cap(state.kind)} <span class="pill">${rows.length}${cont ? "+" : ""}</span><span class="live-dot" id="live-dot" title="Live"></span>${mk}</h2>` +
           tableHTML(rows, true);
         if (cont)
           h += `<div style="text-align:center;margin-top:12px"><button class="btn ghost" onclick='loadMore(${JSON.stringify(cont)})'>Load more…</button></div>`;
@@ -7952,6 +8087,9 @@
                 .replace(/^[\s\S]*?<tbody>/, "")
                 .replace(/<\/tbody>[\s\S]*$/, ""),
             );
+          // Swapping the tbody wholesale would throw away the pages the user just
+          // loaded, so paginating opts this view out of live updates.
+          livePaged = true;
           const btn = document.querySelector("#main .btn.ghost");
           if (res.continue)
             btn.setAttribute(
@@ -8266,6 +8404,7 @@
             body: JSON.stringify({ namespace: ns, name }),
           });
           toast("Restarted " + name);
+          render();
         } catch (e) {
           toast("⚠️ " + e.message);
         }
@@ -10013,6 +10152,67 @@
       }
 
       // --- boot ---
+      // ---------- remembered cluster + namespace ----------
+      // Re-picking the cluster and namespace on every reload was pure friction, so
+      // both selections are sticky. The namespace is remembered PER CLUSTER — "prod"
+      // in one cluster and "default" in another are different working contexts, and
+      // carrying one over to the other is how people act on the wrong cluster. A
+      // ?ns= in the URL always wins, so a shared link lands where the sender meant.
+      const CTX_KEY = "kp-ctx";
+      const NS_KEY = "kp-ns";
+      let activeCtx = "";
+
+      function nsMemory() {
+        try {
+          return JSON.parse(localStorage.getItem(NS_KEY)) || {};
+        } catch {
+          return {};
+        }
+      }
+      function rememberedNs(ctx) {
+        return nsMemory()[ctx] || "";
+      }
+      function rememberNs(ctx, ns) {
+        if (!ctx) return;
+        try {
+          const m = nsMemory();
+          if (ns) m[ctx] = ns;
+          else delete m[ctx];
+          localStorage.setItem(NS_KEY, JSON.stringify(m));
+        } catch {}
+      }
+      // applyNs points the picker at a namespace, but only if that namespace still
+      // exists in this cluster — a remembered namespace that has since been deleted
+      // must fall back to "All namespaces" rather than silently querying nothing.
+      function applyNs(ns) {
+        const sel = $("#ns");
+        const ok =
+          !ns || [...sel.options].some((o) => (o.value || o.text) === ns);
+        state.ns = ok ? ns : "";
+        sel.value = state.ns;
+        updateAICtx();
+        return ok;
+      }
+      // The hash carries both the view and the namespace: #pods?ns=prod.
+      function parseHash() {
+        const raw = location.hash.slice(1);
+        const q = raw.indexOf("?");
+        if (q < 0) return { view: raw, ns: null };
+        return {
+          view: raw.slice(0, q),
+          ns: new URLSearchParams(raw.slice(q + 1)).get("ns"),
+        };
+      }
+      function hashFor(kind) {
+        return "#" + kind + (state.ns ? "?ns=" + encodeURIComponent(state.ns) : "");
+      }
+      function syncHash() {
+        try {
+          const want = hashFor(state.kind);
+          if (location.hash !== want) history.replaceState(null, "", want);
+        } catch {}
+      }
+
       async function loadContexts() {
         try {
           const c = await api("/api/contexts");
@@ -10035,11 +10235,47 @@
               )
               .join("");
           }
+          activeCtx = c.active || $("#ctxsel").value || "";
           $("#ctx").textContent = "⎈ connected";
         } catch {
           $("#ctx").textContent = "⚠️ no cluster";
         }
         updateAICtx();
+      }
+      // The active cluster lives in the server process, so it survives a reload but
+      // not a restart — and a second browser would silently inherit whatever the
+      // last one picked. Re-asserting the remembered choice on boot makes the
+      // selection belong to the operator instead of to the process.
+      async function restoreContext() {
+        let want = "";
+        try {
+          want = localStorage.getItem(CTX_KEY) || "";
+        } catch {}
+        const sel = $("#ctxsel");
+        const known = [...sel.options].some((o) => o.value === want);
+        if (!want || !known) {
+          // Nothing remembered (or it is gone from the kubeconfig): adopt whatever
+          // the server is already pointed at, so the next reload is sticky.
+          if (activeCtx) {
+            try {
+              localStorage.setItem(CTX_KEY, activeCtx);
+            } catch {}
+          }
+          return;
+        }
+        if (want === activeCtx) return;
+        try {
+          await api("/api/context", {
+            method: "POST",
+            body: JSON.stringify({ context: want }),
+          });
+          activeCtx = want;
+          sel.value = want;
+        } catch {
+          // The remembered cluster is unreachable — stay on the server's choice
+          // rather than blocking boot, and say so once the shell is up.
+          toast("⚠️ Could not reconnect to " + want);
+        }
       }
       async function switchContext(name) {
         $("#ctx").textContent = "⎈ switching…";
@@ -10048,9 +10284,14 @@
             method: "POST",
             body: JSON.stringify({ context: name }),
           });
-          state.ns = "";
+          activeCtx = name;
+          try {
+            localStorage.setItem(CTX_KEY, name);
+          } catch {}
           $("#ctx").textContent = "⎈ connected";
           await loadNamespaces();
+          // Each cluster keeps its own last-used namespace.
+          applyNs(rememberedNs(name));
           await refreshPerms();
           go("dashboard");
           toast("Switched to " + name);
@@ -10229,6 +10470,7 @@
           })
           .catch(() => {});
         await loadContexts();
+        await restoreContext();
         bootStep("cfg", "done");
         bootStep("cluster", "on");
         await refreshAIStatus();
@@ -10240,18 +10482,25 @@
         );
         $("#ns").addEventListener("change", (e) => {
           state.ns = e.target.value;
+          rememberNs(activeCtx, state.ns);
+          syncHash();
           updateAICtx();
           refreshPerms().then(render);
           refreshAlertBadge();
         });
         await refreshPerms();
+        paintLiveBtn();
         bootStep("perms", "done");
         bootStep("eco", "on");
         refreshAlertBadge();
         loadTelemetry();
         // The Command Center is the bridge: boot into it unless a deep link
         // says otherwise. Old #pilot deep links land on the dashboard.
-        let view = location.hash.slice(1) || "dashboard";
+        const link = parseHash();
+        // A ?ns= in the link beats the remembered namespace; otherwise pick up
+        // wherever this cluster was left last time.
+        applyNs(link.ns !== null ? link.ns : rememberedNs(activeCtx));
+        let view = link.view || "dashboard";
         if (view.startsWith("pilot")) view = "dashboard";
         go(view);
         bootStep("eco", "done");
