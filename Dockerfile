@@ -3,7 +3,7 @@
 # official images set GOTOOLCHAIN=local, so a base older than the `go` directive
 # cannot auto-fetch the newer toolchain and the build fails outright. Bumping
 # go.mod without bumping this line is what broke the v0.3.0 image.
-FROM golang:1.26.6 AS build
+FROM golang:1.27.0 AS build
 WORKDIR /src
 
 # Cache module downloads
