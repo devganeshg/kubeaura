@@ -31,7 +31,7 @@ kubeaura        # reads your current kube context, opens http://127.0.0.1:7654
 
 **Highlights**
 
-- 🖥️ **Full cluster cockpit** — command-center dashboard, metrics heatmaps, alert triage, topology graph, quota dashboard, 19 resource kinds with logs / exec / YAML diff-apply
+- 🖥️ **Full cluster cockpit** — command-center dashboard, metrics heatmaps, alert triage, topology graph, quota dashboard, read-only resource hygiene scans, 19 resource kinds with logs / exec / YAML diff-apply
 - 🧠 **AI Assistant** (pluggable: Anthropic, Ollama-local, any OpenAI-compatible) — diagnose pods, explain architecture, review YAML, summarize logs
 - 🎙️ **Talk to KubeAura** — a voice assistant available on every view: ask questions aloud, get spoken answers grounded in live cluster state, and issue commands ("scale web-frontend to 3") with confirmation gating
 - 🪟 **Native desktop app** — the same binary opens as a desktop window on macOS, Windows, or Linux (system webview, no Electron)

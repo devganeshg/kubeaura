@@ -4367,6 +4367,7 @@
         clusters: "Fleet",
         helm: "Helm",
         compliance: "Compliance",
+        hygiene: "Resource Hygiene",
       };
       let state = {
         kind: "dashboard",
@@ -4511,6 +4512,7 @@
               "alerts",
               "changes",
               "quotas",
+              "hygiene",
               "topology",
               "security",
               "compliance",
@@ -4603,6 +4605,8 @@
           '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
         quotas:
           '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+        hygiene:
+          '<path d="M12 3v3"/><path d="M18.4 5.6 16.3 7.7"/><path d="M21 12h-3"/><path d="M18.4 18.4 16.3 16.3"/><path d="M12 21v-3"/><path d="M5.6 18.4 7.7 16.3"/><path d="M3 12h3"/><path d="M5.6 5.6 7.7 7.7"/><circle cx="12" cy="12" r="4"/>',
         changes:
           '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
         topology:
@@ -4729,6 +4733,7 @@
           if (state.kind === "alerts") return renderAlerts();
           if (state.kind === "topology") return renderTopology();
           if (state.kind === "quotas") return renderQuotas();
+          if (state.kind === "hygiene") return renderHygiene();
           if (state.kind === "clusters") return renderClusters();
           if (state.kind === "helm") return renderHelm();
           if (state.kind === "compliance") return renderCompliance();
@@ -6623,6 +6628,38 @@
         return `<div class="qrow"><span class="ql">${label}</span>
       <span class="qtrack"><span class="qfill" style="width:${w}%;background:${color}"></span></span>
       <span class="qval mono">${usedText}${p == null ? "" : " · " + p + "%"}</span></div>`;
+      }
+      async function renderHygiene() {
+        const scope = state.ns || "all namespaces";
+        $("#main").innerHTML = `<h2>Resource Hygiene <span class="pill">${esc(scope)}</span>
+    <span class="spacer" style="flex:1"></span><button class="btn ghost" title="Rescan" aria-label="Rescan" onclick="renderHygiene()">↻</button></h2>
+    <div class="sub" style="color:var(--muted);font-size:12px;margin-bottom:14px">Findings are review candidates; this report never deletes resources.</div>
+    <div id="hygiene-body"><div class="empty"><span class="spin"></span></div></div>`;
+        try {
+          const report = await api(`/api/hygiene?namespace=${state.ns}`);
+          const findings = report.findings || [];
+          const warnings = report.warnings || [];
+          let html = `<div class="cards">
+        <div class="card"><div class="n">${findings.length}</div><div class="l">Candidates</div></div>
+        <div class="card"><div class="n">${warnings.length}</div><div class="l">Incomplete checks</div></div>
+      </div>`;
+          if (warnings.length) {
+            html += `<div class="empty" style="text-align:left;margin-bottom:12px">${warnings.map((warning) => `<div>${esc(warning)}</div>`).join("")}</div>`;
+          }
+          if (!findings.length) {
+            html += `<div class="empty">No candidate resources found.</div>`;
+          } else {
+            html += `<table><thead><tr><th>Resource</th><th>Namespace</th><th>Signal</th></tr></thead><tbody>`;
+            for (const finding of findings) {
+              html += `<tr><td>${esc(finding.kind)} <span class="mono">${esc(finding.name)}</span></td>
+        <td class="mono">${esc(finding.namespace || "—")}</td><td>${esc(finding.reason)}</td></tr>`;
+            }
+            html += `</tbody></table>`;
+          }
+          $("#hygiene-body").innerHTML = html;
+        } catch (e) {
+          $("#hygiene-body").innerHTML = `<div class="empty">⚠️ ${esc(e.message)}</div>`;
+        }
       }
       async function renderQuotas() {
         $("#main").innerHTML = `<h2>Resource Quotas <span class="pill">${esc(state.ns || "all namespaces")}</span></h2>

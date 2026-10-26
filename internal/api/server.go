@@ -127,6 +127,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/topology", s.handleTopology)
 	mux.HandleFunc("/api/namespaces", s.handleNamespaces)
 	mux.HandleFunc("/api/quotas", s.handleQuotas)
+	mux.HandleFunc("/api/hygiene", s.handleHygiene)
 	mux.HandleFunc("/api/resources", s.handleResources)
 	mux.HandleFunc("/api/detail", s.handleDetail)
 	mux.HandleFunc("/api/cani", s.handleCanI)
@@ -681,6 +682,15 @@ func (s *Server) handleQuotas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"items": rows})
+}
+
+func (s *Server) handleHygiene(w http.ResponseWriter, r *http.Request) {
+	report, err := s.k8s().Hygiene(r.URL.Query().Get("namespace"))
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
 }
 
 func (s *Server) handleResources(w http.ResponseWriter, r *http.Request) {
